@@ -1,0 +1,157 @@
+{
+  "personas": [
+    {
+      "id": "raju",
+      "signals": {
+        "borrower_name": "Raju",
+        "upi": {
+          "transaction_frequency_per_month": 180,
+          "average_transaction_value_inr": 450,
+          "merchant_diversity_score": 0.74,
+          "regularity_score": 0.88,
+          "months_of_history": 14,
+          "monthly_volume_trend_pct": 8
+        },
+        "gst": {
+          "filing_frequency": "not_applicable",
+          "filing_consistency_score": 0.0,
+          "missed_filings_last_12m": 0,
+          "revenue_trend_pct": 0,
+          "is_applicable": false
+        },
+        "rent": {
+          "rent_amount_inr": 6500,
+          "on_time_payment_ratio": 0.98,
+          "late_payments_last_24m": 0,
+          "tenancy_months": 36,
+          "longest_gap_months": 0
+        },
+        "mobile": {
+          "recharge_frequency_per_month": 1.0,
+          "average_recharge_value_inr": 299,
+          "consistency_score": 0.91,
+          "finance_app_usage_score": 0.86,
+          "risky_app_usage_score": 0.08,
+          "monthly_data_usage_gb": 18
+        },
+        "utilities": {
+          "electricity_on_time_ratio": 0.94,
+          "water_on_time_ratio": 0.92,
+          "average_monthly_total_inr": 2100,
+          "payment_months_observed": 24
+        },
+        "employment": {
+          "employment_type": "self_employed",
+          "monthly_income_inr": 32000,
+          "income_stability_score": 0.78,
+          "months_in_current_work": 120,
+          "income_proof_type": "bank_statement"
+        },
+        "existing_emi_on_time_ratio": 1.0,
+        "declared_attributes": {}
+      }
+    },
+    {
+      "id": "priya",
+      "signals": {
+        "borrower_name": "Priya",
+        "upi": {
+          "transaction_frequency_per_month": 40,
+          "average_transaction_value_inr": 3200,
+          "merchant_diversity_score": 0.63,
+          "regularity_score": 0.52,
+          "months_of_history": 12,
+          "monthly_volume_trend_pct": 3
+        },
+        "gst": {
+          "filing_frequency": "quarterly",
+          "filing_consistency_score": 0.72,
+          "missed_filings_last_12m": 1,
+          "revenue_trend_pct": 5,
+          "is_applicable": true
+        },
+        "rent": {
+          "rent_amount_inr": 18000,
+          "on_time_payment_ratio": 0.91,
+          "late_payments_last_24m": 2,
+          "tenancy_months": 24,
+          "longest_gap_months": 0
+        },
+        "mobile": {
+          "recharge_frequency_per_month": 0.9,
+          "average_recharge_value_inr": 449,
+          "consistency_score": 0.77,
+          "finance_app_usage_score": 0.88,
+          "risky_app_usage_score": 0.12,
+          "monthly_data_usage_gb": 26
+        },
+        "utilities": {
+          "electricity_on_time_ratio": 0.96,
+          "water_on_time_ratio": 0.94,
+          "average_monthly_total_inr": 3500,
+          "payment_months_observed": 24
+        },
+        "employment": {
+          "employment_type": "freelance",
+          "monthly_income_inr": 68000,
+          "income_stability_score": 0.58,
+          "months_in_current_work": 48,
+          "income_proof_type": "invoice"
+        },
+        "existing_emi_on_time_ratio": 0.98,
+        "declared_attributes": {}
+      }
+    },
+    {
+      "id": "mohammed",
+      "signals": {
+        "borrower_name": "Mohammed",
+        "upi": {
+          "transaction_frequency_per_month": 95,
+          "average_transaction_value_inr": 1100,
+          "merchant_diversity_score": 0.69,
+          "regularity_score": 0.75,
+          "months_of_history": 18,
+          "monthly_volume_trend_pct": 6
+        },
+        "gst": {
+          "filing_frequency": "monthly",
+          "filing_consistency_score": 0.95,
+          "missed_filings_last_12m": 0,
+          "revenue_trend_pct": 7,
+          "is_applicable": true
+        },
+        "rent": {
+          "rent_amount_inr": 12000,
+          "on_time_payment_ratio": 0.83,
+          "late_payments_last_24m": 1,
+          "tenancy_months": 60,
+          "longest_gap_months": 3
+        },
+        "mobile": {
+          "recharge_frequency_per_month": 1.6,
+          "average_recharge_value_inr": 499,
+          "consistency_score": 0.82,
+          "finance_app_usage_score": 0.84,
+          "risky_app_usage_score": 0.18,
+          "monthly_data_usage_gb": 32
+        },
+        "utilities": {
+          "electricity_on_time_ratio": 0.88,
+          "water_on_time_ratio": 0.9,
+          "average_monthly_total_inr": 4300,
+          "payment_months_observed": 24
+        },
+        "employment": {
+          "employment_type": "self_employed",
+          "monthly_income_inr": 95000,
+          "income_stability_score": 0.72,
+          "months_in_current_work": 132,
+          "income_proof_type": "bank_statement"
+        },
+        "existing_emi_on_time_ratio": 0.9,
+        "declared_attributes": {}
+      }
+    }
+  ]
+}

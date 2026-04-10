@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface": "#0a0e19",
+                    "background": "#0a0e19",
+                    "error-dim": "#d73357",
+                    "on-secondary": "#33005b",
+                    "secondary-container": "#6f00be",
+                    "tertiary-container": "#6bff8f",
+                    "tertiary": "#c5ffc9",
+                    "primary": "#a3a6ff",
+                    "surface-container-highest": "#202535",
+                    "on-primary-container": "#0a0081",
+                    "secondary-fixed": "#e5c6ff",
+                    "on-surface-variant": "#a7aaba",
+                    "on-tertiary": "#00692c",
+                    "primary-fixed": "#9396ff",
+                    "surface-dim": "#0a0e19",
+                    "on-tertiary-container": "#005f28",
+                    "on-surface": "#e8eafb",
+                    "on-primary-fixed": "#000000",
+                    "surface-container": "#141927",
+                    "surface-bright": "#262c3d",
+                    "on-primary-fixed-variant": "#0e009d",
+                    "outline-variant": "#444855",
+                    "on-error-container": "#ffb2b9",
+                    "surface-container-lowest": "#000000",
+                    "on-tertiary-fixed": "#004a1d",
+                    "surface-container-low": "#0f131f",
+                    "inverse-primary": "#494bd7",
+                    "inverse-surface": "#faf8ff",
+                    "on-secondary-fixed-variant": "#7511c3",
+                    "inverse-on-surface": "#515562",
+                    "surface-container-high": "#1a1f2e",
+                    "on-primary": "#0f00a4",
+                    "on-secondary-container": "#e9cdff",
+                    "secondary-dim": "#9c48ea",
+                    "on-tertiary-fixed-variant": "#006a2d",
+                    "tertiary-fixed": "#6bff8f",
+                    "surface-variant": "#202535",
+                    "primary-container": "#9396ff",
+                    "on-background": "#e8eafb",
+                    "surface-tint": "#a3a6ff",
+                    "primary-fixed-dim": "#8387ff",
+                    "tertiary-dim": "#5bf083",
+                    "primary-dim": "#6063ee",
+                    "error": "#ff6e84",
+                    "secondary-fixed-dim": "#dbb4ff",
+                    "tertiary-fixed-dim": "#5bf083",
+                    "secondary": "#c180ff",
+                    "error-container": "#a70138",
+                    "on-error": "#490013",
+                    "outline": "#717583",
+                    "on-secondary-fixed": "#4f0089"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "1.5rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Plus Jakarta Sans"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: linear-gradient(135deg, rgba(32, 37, 53, 0.4) 0%, rgba(15, 19, 31, 0.6) 100%);
+            backdrop-filter: blur(20px);
+        }
+        .premium-glow:hover {
+            box-shadow: 0 0 30px -5px rgba(163, 166, 255, 0.15);
+        }
+        .text-gradient {
+            background: linear-gradient(135deg, #a3a6ff 0%, #c180ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary/30 min-h-screen flex flex-col">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-950/60 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(163,166,255,0.04)] font-['Plus_Jakarta_Sans'] antialiased">
+<div class="flex justify-between items-center px-8 py-4 max-w-screen-2xl mx-auto">
+<div class="text-2xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+                Luminal Logic
+            </div>
+<nav class="hidden md:flex items-center space-x-8">
+<a class="text-slate-400 hover:text-slate-100 transition-colors" href="#">Dashboard</a>
+<a class="text-slate-400 hover:text-slate-100 transition-colors" href="#">Analytics</a>
+<a class="text-slate-400 hover:text-slate-100 transition-colors" href="#">Simulations</a>
+<a class="text-slate-400 hover:text-slate-100 transition-colors" href="#">Loans</a>
+</nav>
+<div class="flex items-center space-x-5">
+<button class="p-2 hover:bg-slate-800/40 rounded-lg transition-all active:scale-95 text-slate-400">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 hover:bg-slate-800/40 rounded-lg transition-all active:scale-95 text-slate-400">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="w-10 h-10 rounded-full border border-outline-variant/30 overflow-hidden">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="Close-up portrait of a professional male with a neutral expression and soft studio lighting on dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBc4sCbDzBs4wA_QzW_rQdnLxL4DyIFE0EK7rxAchktomZ2Oj0fiCwCLNE740r6V2V2ytHtcmP0cZEyUJjsHrtF9XFm2ya8ue7eH5_X6uogt3GQsxt_ZkustenTDaDGf9S0uKijLBbLmUzzDRsW3MEnXwDwcU3tz5-30SP7FAxFbiR7iulO401OHeshLJjSi26_b4n8B2u3NpoyMxp4NbWDE2ma1a7oTJu8LMVtU-QvpkTHk0VLN4vGLihZ3NWiCucLSMkvC6S4j50"/>
+</div>
+</div>
+</div>
+</header>
+<main class="flex-grow pt-32 pb-20 px-6">
+<section class="max-w-6xl mx-auto">
+<div class="text-center mb-16">
+<h1 class="font-headline text-5xl md:text-6xl font-extrabold tracking-tighter mb-4 text-on-surface">
+                    Select a <span class="text-gradient">Persona</span>
+</h1>
+<p class="text-on-surface-variant text-lg max-w-2xl mx-auto">
+                    Evaluate creditworthiness across diverse financial backgrounds using our Digital Alchemist decision engine.
+                </p>
+</div>
+<!-- Persona Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Card 1: Vegetable Vendor -->
+<div class="glass-card premium-glow rounded-xl p-8 flex flex-col h-full outline-variant/10 outline outline-1 transition-all duration-300">
+<div class="mb-6 h-48 rounded-xl overflow-hidden relative">
+<img alt="Traditional Market" class="w-full h-full object-cover opacity-80" data-alt="Vibrant close-up of fresh vegetables at a traditional outdoor market with warm natural sunlight and rich organic textures" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBPkxcsxgWaVqIygQUontGyD8ouFozHkALbqv2EYGxIvwjBHvyB7vxBmWFQVkZD1nbjbUympK5edaya-cxbm8B7wpS2MmFM1ijhYpA7S6kBqB8DNFe-aveHbUVm6VVgsQbdnrntsrNX9HK7h--u7-goepwSEHZ1DVBlNcKNXoZwECpE41EUFpnQbAPPjqAccprDFJIYM0o2lus56oqiseCPISnriEJcNVICDsd9WLy5Xp1Ip1j3RXxzkKtZjYaA_YcbdqXsxv3vSCo"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-low to-transparent"></div>
+</div>
+<div class="flex-grow">
+<div class="flex items-center justify-between mb-4">
+<span class="px-3 py-1 bg-tertiary-container/10 text-tertiary-fixed text-xs font-bold tracking-widest rounded-full uppercase">Stability: High</span>
+<span class="material-symbols-outlined text-tertiary" data-icon="verified_user">verified_user</span>
+</div>
+<h3 class="font-headline text-2xl font-bold mb-2">Vegetable Vendor</h3>
+<p class="text-on-surface-variant text-sm mb-6 leading-relaxed">
+                            Traditional street-side vendor with long-standing community ties. High cash-flow predictability despite low digital footprint.
+                        </p>
+<div class="bg-surface-container-lowest/50 rounded-xl p-4 mb-8">
+<div class="flex justify-between items-center">
+<span class="text-xs text-on-surface-variant font-medium">Monthly Income</span>
+<span class="font-headline font-bold text-lg text-on-surface">₹15k</span>
+</div>
+</div>
+</div>
+<button class="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-primary to-secondary text-on-primary-fixed font-bold text-sm tracking-tight active:scale-95 transition-all shadow-lg shadow-primary/10">
+                        Analyze Profile
+                    </button>
+</div>
+<!-- Card 2: Freelancer -->
+<div class="glass-card premium-glow rounded-xl p-8 flex flex-col h-full outline outline-1 outline-primary/30 transition-all duration-300 ring-1 ring-primary/10">
+<div class="mb-6 h-48 rounded-xl overflow-hidden relative">
+<img alt="Digital Workspace" class="w-full h-full object-cover opacity-80" data-alt="Modern minimalist workspace with a sleek laptop, coffee cup, and soft morning light through a large window, digital nomad aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAvMHTJRW0GorDI0Vkk0KHPZFO76EodHvOHrfy2dhPD5-prH3HbJu72Ft5Dyf2FAa6-y840q9j6pA3B23h572OsprLocVI1nMxPI8gQ_B2dBmQhZCol54pwAgNfFHE9PNFYn7HKmZrmwCAQy7QGJRaM7ur72kYuOFilRm8JB14uhExvn1p7u_EdUYgUNapEPIapx9taYr2KAuKF2qmTUkVGKoWNR10LMy-1sEyiQ7zSw84CaLr_PzO8SgLVifM_ZJw5vW9EqWYjyBo"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-low to-transparent"></div>
+</div>
+<div class="flex-grow">
+<div class="flex items-center justify-between mb-4">
+<span class="px-3 py-1 bg-primary-container/20 text-primary-fixed text-xs font-bold tracking-widest rounded-full uppercase">Stability: Medium</span>
+<span class="material-symbols-outlined text-primary" data-icon="cloud_sync">cloud_sync</span>
+</div>
+<h3 class="font-headline text-2xl font-bold mb-2">Freelancer</h3>
+<p class="text-on-surface-variant text-sm mb-6 leading-relaxed">
+                            Digital nomad specializing in creative software. Diverse global client base with significant digital footprint and modern spending habits.
+                        </p>
+<div class="bg-surface-container-lowest/50 rounded-xl p-4 mb-8">
+<div class="flex justify-between items-center">
+<span class="text-xs text-on-surface-variant font-medium">Monthly Income</span>
+<span class="font-headline font-bold text-lg text-on-surface">₹80k</span>
+</div>
+</div>
+</div>
+<button class="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-primary to-secondary text-on-primary-fixed font-bold text-sm tracking-tight active:scale-95 transition-all shadow-lg shadow-primary/20">
+                        Analyze Profile
+                    </button>
+</div>
+<!-- Card 3: High-Risk Profile -->
+<div class="glass-card premium-glow rounded-xl p-8 flex flex-col h-full outline-variant/10 outline outline-1 transition-all duration-300">
+<div class="mb-6 h-48 rounded-xl overflow-hidden relative">
+<img alt="Dynamic City" class="w-full h-full object-cover opacity-80" data-alt="Fast-paced city street at night with motion blurred lights and a sense of urgent movement and irregular urban energy" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSCx-KZx0PYQsmtDZvukwqcePalsFJQUPayt8bbPBpY2e8uk3upAzqbuvx8ZN12mvFZ2-7h7wTpGZ4KA6qM1ULfmttu9d_nMKb08T2bftkN3u9s-d6LlrOJI-5knhu4tQqXbAprtA44j-PZ-SBYXH1Ah2eWK5CFw6sJ4MkOIrPjEGg7S0VMr6NsOBImmbez8D71iWXgry8hC_50s79CV3FxCXPBbVendPiLzJQy3tC_yQrz66E8SHKw9dT-VFEaz96-9qFgPFoAQ0"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-low to-transparent"></div>
+</div>
+<div class="flex-grow">
+<div class="flex items-center justify-between mb-4">
+<span class="px-3 py-1 bg-error-container/20 text-error text-xs font-bold tracking-widest rounded-full uppercase">Stability: Low</span>
+<span class="material-symbols-outlined text-error" data-icon="warning">warning</span>
+</div>
+<h3 class="font-headline text-2xl font-bold mb-2 text-on-surface">High-Risk Profile</h3>
+<p class="text-on-surface-variant text-sm mb-6 leading-relaxed">
+                            Gig worker with irregular, high-variance income streams. Limited credit history and frequent shifts in geographical residence.
+                        </p>
+<div class="bg-surface-container-lowest/50 rounded-xl p-4 mb-8">
+<div class="flex justify-between items-center">
+<span class="text-xs text-on-surface-variant font-medium">Monthly Income</span>
+<span class="font-headline font-bold text-lg text-on-surface">₹40k</span>
+</div>
+</div>
+</div>
+<button class="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-primary to-secondary text-on-primary-fixed font-bold text-sm tracking-tight active:scale-95 transition-all shadow-lg shadow-primary/10">
+                        Analyze Profile
+                    </button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full border-t border-slate-800/50 bg-slate-950 mt-auto">
+<div class="flex flex-col md:flex-row justify-between items-center px-12 py-8 space-y-4 md:space-y-0 max-w-screen-2xl mx-auto">
+<div class="text-lg font-bold text-slate-200">Luminal Logic</div>
+<div class="flex flex-wrap justify-center gap-6 font-['Inter'] text-sm tracking-wide">
+<a class="text-slate-500 hover:text-indigo-300 transition-colors" href="#">Privacy Policy</a>
+<a class="text-slate-500 hover:text-indigo-300 transition-colors" href="#">Terms of Service</a>
+<a class="text-slate-500 hover:text-indigo-300 transition-colors" href="#">Security</a>
+<a class="text-slate-500 hover:text-indigo-300 transition-colors" href="#">API Documentation</a>
+</div>
+<div class="text-slate-500 font-['Inter'] text-xs">
+                © 2024 Luminal Logic. AI-Powered Precision.
+            </div>
+</div>
+</footer>
+</body></html>

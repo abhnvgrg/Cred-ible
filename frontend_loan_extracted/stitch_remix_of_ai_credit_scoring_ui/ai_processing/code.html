@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Luminal Logic | AI Processing</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface": "#0a0e19",
+                        "background": "#0a0e19",
+                        "error-dim": "#d73357",
+                        "on-secondary": "#33005b",
+                        "secondary-container": "#6f00be",
+                        "tertiary-container": "#6bff8f",
+                        "tertiary": "#c5ffc9",
+                        "primary": "#a3a6ff",
+                        "surface-container-highest": "#202535",
+                        "on-primary-container": "#0a0081",
+                        "secondary-fixed": "#e5c6ff",
+                        "on-surface-variant": "#a7aaba",
+                        "on-tertiary": "#00692c",
+                        "primary-fixed": "#9396ff",
+                        "surface-dim": "#0a0e19",
+                        "on-tertiary-container": "#005f28",
+                        "on-surface": "#e8eafb",
+                        "on-primary-fixed": "#000000",
+                        "surface-container": "#141927",
+                        "surface-bright": "#262c3d",
+                        "on-primary-fixed-variant": "#0e009d",
+                        "outline-variant": "#444855",
+                        "on-error-container": "#ffb2b9",
+                        "surface-container-lowest": "#000000",
+                        "on-tertiary-fixed": "#004a1d",
+                        "surface-container-low": "#0f131f",
+                        "inverse-primary": "#494bd7",
+                        "inverse-surface": "#faf8ff",
+                        "on-secondary-fixed-variant": "#7511c3",
+                        "inverse-on-surface": "#515562",
+                        "surface-container-high": "#1a1f2e",
+                        "on-primary": "#0f00a4",
+                        "on-secondary-container": "#e9cdff",
+                        "secondary-dim": "#9c48ea",
+                        "on-tertiary-fixed-variant": "#006a2d",
+                        "tertiary-fixed": "#6bff8f",
+                        "surface-variant": "#202535",
+                        "primary-container": "#9396ff",
+                        "on-background": "#e8eafb",
+                        "surface-tint": "#a3a6ff",
+                        "primary-fixed-dim": "#8387ff",
+                        "tertiary-dim": "#5bf083",
+                        "primary-dim": "#6063ee",
+                        "error": "#ff6e84",
+                        "secondary-fixed-dim": "#dbb4ff",
+                        "tertiary-fixed-dim": "#5bf083",
+                        "secondary": "#c180ff",
+                        "error-container": "#a70138",
+                        "on-error": "#490013",
+                        "outline": "#717583",
+                        "on-secondary-fixed": "#4f0089"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Plus Jakarta Sans"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        @keyframes pulse-slow { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.7; } }
+        .animate-pulse-slow { animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .glass-panel { backdrop-filter: blur(20px); }
+        .gradient-text { background-clip: text; -webkit-background-clip: text; color: transparent; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface antialiased selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-slate-950/60 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(163,166,255,0.04)]">
+<div class="flex justify-between items-center px-8 py-4 max-w-screen-2xl mx-auto font-['Plus_Jakarta_Sans'] antialiased">
+<div class="text-2xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+                Luminal Logic
+            </div>
+<div class="hidden md:flex items-center space-x-8">
+<a class="text-indigo-300 border-b-2 border-indigo-500 pb-1 font-semibold" href="#">Dashboard</a>
+<a class="text-slate-400 hover:text-slate-100 transition-colors" href="#">Analytics</a>
+<a class="text-slate-400 hover:text-slate-100 transition-colors" href="#">Simulations</a>
+<a class="text-slate-400 hover:text-slate-100 transition-colors" href="#">Loans</a>
+</div>
+<div class="flex items-center space-x-4">
+<span class="material-symbols-outlined text-slate-400 hover:bg-slate-800/40 p-2 rounded-lg transition-all cursor-pointer">notifications</span>
+<span class="material-symbols-outlined text-slate-400 hover:bg-slate-800/40 p-2 rounded-lg transition-all cursor-pointer">settings</span>
+<div class="h-8 w-8 rounded-full bg-surface-container-highest overflow-hidden border border-outline-variant/30">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="Professional headshot of a financial executive in a dark suit with a modern architectural background in soft focus" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6G0XqNqxnEjtygLiTBrEkRWKJhOPG5OjUVRIDUtAgxo-k4f9Wwn0f9Qxx0Q93D14XwWp_x-ZfJDY7RcdCBCDcBD-w--JtfXtClmOGF7AUuo1A3-uubHBJTOQ7jCSg4sIhmDFVOQGJrXTg81T1sUu5I4lpvY4pJSIGzmVFpwBQslc8DlAz1dew4Q03z12b69M5HoIf9Y-IO2G-6dLZg5HTJHKylavFdG0D8qfUNwIB_9-Lr4gAtOO2xiMcXk58__wUZMM64rtCM20"/>
+</div>
+</div>
+</div>
+</nav>
+<!-- Main Canvas -->
+<main class="min-h-screen pt-24 pb-12 px-6 flex flex-col items-center justify-center relative overflow-hidden">
+<!-- Background Ambient Glows -->
+<div class="absolute top-1/4 -left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none"></div>
+<div class="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-secondary/10 rounded-full blur-[120px] pointer-events-none"></div>
+<!-- Processing Header -->
+<header class="text-center mb-16 relative z-10 max-w-2xl">
+<h1 class="font-headline text-4xl md:text-5xl font-extrabold tracking-tight mb-4 leading-tight">
+                Synthesizing Your <span class="bg-gradient-to-r from-primary to-secondary gradient-text">Financial Identity</span>
+</h1>
+<p class="text-on-surface-variant text-lg leading-relaxed">
+                Our Neural Engine is aggregating parallel data streams to generate your real-time liquidity profile.
+            </p>
+</header>
+<!-- AI Agents Parallel Processing Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl relative z-10">
+<!-- Cash Flow Agent (UPI) -->
+<div class="bg-surface-container-low rounded-xl p-8 glass-panel relative group overflow-hidden transition-all duration-500 hover:bg-surface-container">
+<div class="absolute top-0 right-0 p-4">
+<span class="material-symbols-outlined text-primary text-3xl opacity-50">account_balance_wallet</span>
+</div>
+<div class="mb-6">
+<div class="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-4">
+<span class="w-2 h-2 rounded-full bg-primary mr-2 animate-pulse"></span>
+                        Cash Flow Agent
+                    </div>
+<h3 class="font-headline text-xl font-bold mb-1">UPI Transactions</h3>
+<p class="text-on-surface-variant text-sm mb-6">Analyzing income patterns...</p>
+</div>
+<!-- Animated Progress -->
+<div class="space-y-3">
+<div class="flex justify-between text-xs font-medium text-primary">
+<span>DATA RETRIEVAL</span>
+<span>84%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-gradient-to-r from-primary to-primary-dim w-[84%] rounded-full shadow-[0_0_12px_rgba(163,166,255,0.4)]"></div>
+</div>
+</div>
+<div class="mt-8 flex items-center space-x-3 opacity-60">
+<span class="material-symbols-outlined text-sm">database</span>
+<span class="text-[10px] tracking-widest font-mono uppercase">Stream: NPCI_REALTIME_V4</span>
+</div>
+</div>
+<!-- Compliance Agent (GST) -->
+<div class="bg-surface-container-low rounded-xl p-8 glass-panel relative group overflow-hidden transition-all duration-500 hover:bg-surface-container border-t-2 border-secondary/20">
+<div class="absolute top-0 right-0 p-4">
+<span class="material-symbols-outlined text-secondary text-3xl opacity-50">verified_user</span>
+</div>
+<div class="mb-6">
+<div class="inline-flex items-center px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-bold uppercase tracking-wider mb-4">
+<span class="w-2 h-2 rounded-full bg-secondary mr-2 animate-pulse"></span>
+                        Compliance Agent
+                    </div>
+<h3 class="font-headline text-xl font-bold mb-1">GST &amp; Tax</h3>
+<p class="text-on-surface-variant text-sm mb-6">Evaluating compliance...</p>
+</div>
+<!-- Animated Progress -->
+<div class="space-y-3">
+<div class="flex justify-between text-xs font-medium text-secondary">
+<span>VERIFICATION</span>
+<span>42%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-gradient-to-r from-secondary to-secondary-dim w-[42%] rounded-full shadow-[0_0_12px_rgba(193,128,255,0.4)]"></div>
+</div>
+</div>
+<div class="mt-8 flex items-center space-x-3 opacity-60">
+<span class="material-symbols-outlined text-sm">cloud_sync</span>
+<span class="text-[10px] tracking-widest font-mono uppercase">Node: GOV_GSTN_SECURE</span>
+</div>
+</div>
+<!-- Stability Agent (Rent & Utility) -->
+<div class="bg-surface-container-low rounded-xl p-8 glass-panel relative group overflow-hidden transition-all duration-500 hover:bg-surface-container">
+<div class="absolute top-0 right-0 p-4">
+<span class="material-symbols-outlined text-tertiary text-3xl opacity-50">home_work</span>
+</div>
+<div class="mb-6">
+<div class="inline-flex items-center px-3 py-1 rounded-full bg-tertiary/10 text-tertiary text-xs font-bold uppercase tracking-wider mb-4">
+<span class="w-2 h-2 rounded-full bg-tertiary mr-2 animate-pulse"></span>
+                        Stability Agent
+                    </div>
+<h3 class="font-headline text-xl font-bold mb-1">Rent &amp; Utility</h3>
+<p class="text-on-surface-variant text-sm mb-6">Assessing stability...</p>
+</div>
+<!-- Animated Progress -->
+<div class="space-y-3">
+<div class="flex justify-between text-xs font-medium text-tertiary">
+<span>CONSISTENCY CHECK</span>
+<span>61%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-gradient-to-r from-tertiary to-tertiary-dim w-[61%] rounded-full shadow-[0_0_12px_rgba(107,255,143,0.4)]"></div>
+</div>
+</div>
+<div class="mt-8 flex items-center space-x-3 opacity-60">
+<span class="material-symbols-outlined text-sm">hub</span>
+<span class="text-[10px] tracking-widest font-mono uppercase">Protocol: STABILITY_V9_P2P</span>
+</div>
+</div>
+</div>
+<!-- Central Visualization (The AI Core) -->
+<div class="mt-20 relative flex items-center justify-center">
+<div class="w-64 h-64 rounded-full border border-primary/20 animate-spin-slow flex items-center justify-center relative">
+<div class="absolute inset-0 rounded-full border-t border-secondary animate-spin" style="animation-duration: 3s"></div>
+<div class="w-48 h-48 rounded-full bg-surface-container-highest/50 flex items-center justify-center backdrop-blur-md">
+<span class="material-symbols-outlined text-6xl text-primary animate-pulse" style="font-variation-settings: 'FILL' 1;">neurology</span>
+</div>
+</div>
+<!-- Floating Data Points around Core -->
+<div class="absolute -top-12 -left-12 px-4 py-2 bg-surface-container-highest rounded-lg text-[10px] font-mono border border-outline-variant/30 glass-panel">
+<span class="text-tertiary">SCORE_DELTA: +12.4</span>
+</div>
+<div class="absolute bottom-4 -right-16 px-4 py-2 bg-surface-container-highest rounded-lg text-[10px] font-mono border border-outline-variant/30 glass-panel">
+<span class="text-secondary">RISK_LIMIT: NOMINAL</span>
+</div>
+</div>
+<!-- Intelligent Status Feed -->
+<div class="mt-16 w-full max-w-xl bg-surface-container-lowest/40 rounded-xl p-6 border border-outline-variant/10">
+<div class="flex items-center justify-between mb-4">
+<h4 class="text-xs font-bold text-on-surface-variant tracking-widest uppercase">Live Activity Stream</h4>
+<div class="flex space-x-1">
+<div class="w-1 h-1 rounded-full bg-primary animate-bounce"></div>
+<div class="w-1 h-1 rounded-full bg-primary animate-bounce" style="animation-delay: 0.2s"></div>
+<div class="w-1 h-1 rounded-full bg-primary animate-bounce" style="animation-delay: 0.4s"></div>
+</div>
+</div>
+<div class="space-y-3 font-mono text-xs">
+<div class="flex items-start space-x-3 text-primary/80">
+<span class="opacity-40">14:22:01</span>
+<span>[AGENT_CASH] Identified recurring salary credit from TATA CONSULTANCY.</span>
+</div>
+<div class="flex items-start space-x-3 text-on-surface-variant">
+<span class="opacity-40">14:22:05</span>
+<span>[SYSTEM] Cross-referencing PAN data with GST portal records...</span>
+</div>
+<div class="flex items-start space-x-3 text-tertiary">
+<span class="opacity-40">14:22:08</span>
+<span>[AGENT_STABILITY] Utility bill payment consistency verified (12/12 months).</span>
+</div>
+<div class="flex items-start space-x-3 text-secondary">
+<span class="opacity-40">14:22:12</span>
+<span>[AGENT_COMPLIANCE] GST filing frequency matches reported turnover.</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full border-t border-slate-800/50 bg-slate-950">
+<div class="flex flex-col md:flex-row justify-between items-center px-12 py-8 space-y-4 md:space-y-0 font-['Inter'] text-sm tracking-wide">
+<div class="text-lg font-bold text-slate-200">
+                Luminal Logic
+                <span class="block text-[10px] text-slate-500 font-normal mt-1 uppercase tracking-widest">AI-Powered Precision.</span>
+</div>
+<div class="flex space-x-8 text-slate-500">
+<a class="hover:text-indigo-300 transition-colors" href="#">Privacy Policy</a>
+<a class="hover:text-indigo-300 transition-colors" href="#">Terms of Service</a>
+<a class="hover:text-indigo-300 transition-colors" href="#">Security</a>
+<a class="hover:text-indigo-300 transition-colors" href="#">API Documentation</a>
+</div>
+<div class="text-slate-500">
+                © 2024 Luminal Logic. All rights reserved.
+            </div>
+</div>
+</footer>
+<!-- CSS Spin Animations for Core -->
+<style>
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+            animation: spin-slow 12s linear infinite;
+        }
+    </style>
+</body></html>
