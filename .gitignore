@@ -1,25 +1,27 @@
 # Node / Next.js
-frontend\node_modules\
-frontend\.next\
-frontend\out\
-frontend\coverage\
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/coverage/
 
 # Python
-backend\__pycache__\
-backend\.venv\
-**\__pycache__\
+backend/__pycache__/
+backend/.venv/
+**/__pycache__/
 *.pyc
 
 # Build / cache
 .DS_Store
 Thumbs.db
 *.log
-dist\
-coverage\
+dist/
+coverage/
 
 # Local env files
 .env
 .env.*
+frontend/.env.local
+backend/.env.local
 
 # Generated artifacts
-backend\artifacts\
+backend/artifacts/

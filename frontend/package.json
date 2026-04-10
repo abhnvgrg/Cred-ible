@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "clean:next": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"if (Test-Path '.next') { Remove-Item '.next' -Recurse -Force }; Write-Host 'Cleared .next cache'\"",
-    "dev:clean": "npm run clean:next && next dev",
+    "clean": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"if (Test-Path '.next') { Remove-Item '.next' -Recurse -Force }; Write-Host 'Cleared .next cache'\"",
+    "dev:clean": "npm run clean && next dev",
     "build": "next build",
-    "start": "next start",
+    "preview": "next start",
+    "start": "npm run preview",
     "lint": "next lint"
   },
   "dependencies": {

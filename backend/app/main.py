@@ -47,7 +47,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-PERSONAS = load_personas()
+DEMO_PERSONAS = load_personas()
 
 
 @app.get("/health")
@@ -84,9 +84,9 @@ async def score_borrower(payload: BorrowerSignalInput) -> ScoreResponse:
 
 @app.post("/score/demo/{persona_id}", response_model=ScoreResponse)
 async def score_demo_persona(persona_id: str) -> ScoreResponse:
-    persona = PERSONAS.get(persona_id.lower())
+    persona = DEMO_PERSONAS.get(persona_id.lower())
     if not persona:
-        raise HTTPException(status_code=404, detail=f"Unknown persona '{persona_id}'")
+        raise HTTPException(status_code=404, detail=f"Unknown demo persona '{persona_id}'")
     return await score_borrower(persona)
 
 
