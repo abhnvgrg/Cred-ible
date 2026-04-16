@@ -26,4 +26,4 @@ Open the app at `http://localhost:3000`.
 
 Use `frontend/.env.example` to create `frontend/.env.local`.
 
-- `NEXT_PUBLIC_API_BASE_URL` — base URL for the backend API (default: `http://127.0.0.1:8000`)
+- `NEXT_PUBLIC_API_BASE_URL` — base URL for the backend API (default: `https://cred-ible.onrender.com`)

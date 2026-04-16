@@ -29,4 +29,4 @@ python train_model.py --dataset ..\credit_demo_dataset.xlsx
 
 ## Health check
 
-- `http://127.0.0.1:8000/health`
+- `https://cred-ible.onrender.com/health`

@@ -30,5 +30,5 @@ Then browse the app at `http://localhost:3000`.
 
 ## Notes
 
-- The frontend uses `NEXT_PUBLIC_API_BASE_URL` to connect to `http://127.0.0.1:8000` by default.
+- The frontend uses `NEXT_PUBLIC_API_BASE_URL` to connect to `https://cred-ible.onrender.com` by default.
 - The `frontend_loan_extracted` folder contains legacy UI extraction content and is not required for the main app.
