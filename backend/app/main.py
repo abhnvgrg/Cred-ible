@@ -39,7 +39,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://cred-ible.vercel.app/"
+        "https://cred-ible.vercel.app"
     ],
     allow_credentials=False,
     allow_methods=["*"],
@@ -47,6 +47,16 @@ app.add_middleware(
 )
 
 DEMO_PERSONAS = load_personas()
+
+
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {
+        "service": "Cred-ible Scoring API",
+        "status": "ok",
+        "health": "/health",
+        "docs": "/docs",
+    }
 
 
 @app.get("/health")
