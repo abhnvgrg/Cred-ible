@@ -1,9 +1,9 @@
-# BharatCredit
+# Cred-ible
 
 This repository contains two main services:
 
 - `backend` – FastAPI service for credit scoring, authentication, model training, and marketplace offer APIs.
-- `frontend` – Next.js app for the BharatCredit user experience.
+- `frontend` – Next.js app for the Cred-ible user experience.
 
 ## Run locally
 

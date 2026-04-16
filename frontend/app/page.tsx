@@ -6,12 +6,12 @@ export default function HomePage() {
       <SurfaceCard className="overflow-hidden">
         <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-5">
-            <span className="eyebrow">Luminal credit engine</span>
+            <span className="eyebrow">Cred-ible credit engine</span>
             <h1 className="headline text-4xl font-extrabold leading-tight sm:text-5xl">
               Unlock trust for India&apos;s <span className="display-gradient">credit-invisible borrowers</span>
             </h1>
             <p className="max-w-2xl text-base leading-relaxed muted">
-              BharatCredit translates transaction behavior, repayment discipline, and compliance patterns into a fast
+              Cred-ible translates transaction behavior, repayment discipline, and compliance patterns into a fast
               lending decision layer with offline continuity when APIs are unavailable.
             </p>
             <div className="flex flex-wrap gap-3">
@@ -111,7 +111,7 @@ export default function HomePage() {
       </section>
 
       <RbiNotice
-        disclaimer="BharatCredit outputs are decision-support insights and must be combined with full lender underwriting under prevailing RBI digital lending guidance."
+        disclaimer="Cred-ible outputs are decision-support insights and must be combined with full lender underwriting under prevailing RBI digital lending guidance."
         retention="Data retention: demo and assessment inputs may be retained for up to 30 days for audits, grievance resolution, and model monitoring."
       />
     </div>

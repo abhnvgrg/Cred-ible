@@ -86,7 +86,7 @@ export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Prom
     return (await response.text()) as T;
   } catch (error) {
     if (abortController.signal.aborted) {
-      throw new Error("Request timed out while contacting BharatCredit API. Please retry.");
+      throw new Error("Request timed out while contacting Cred-ible API. Please retry.");
     }
 
     if (error instanceof Error && error.message.startsWith("API request failed")) {
@@ -94,10 +94,10 @@ export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Prom
     }
 
     if (error instanceof Error) {
-      throw new Error(`Unable to reach BharatCredit API. ${error.message}`);
+      throw new Error(`Unable to reach Cred-ible API. ${error.message}`);
     }
 
-    throw new Error("Unable to reach BharatCredit API.");
+    throw new Error("Unable to reach Cred-ible API.");
   } finally {
     if (timeoutHandle) clearTimeout(timeoutHandle);
     upstreamSignal?.removeEventListener("abort", onAbort);

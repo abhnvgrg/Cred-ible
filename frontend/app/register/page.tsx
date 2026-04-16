@@ -64,7 +64,7 @@ export default function RegisterPage() {
       <SurfaceCard>
         <span className="eyebrow">Create workspace access</span>
         <h1 className="headline mt-4 text-4xl font-extrabold">
-          Join <span className="display-gradient">BharatCredit Control</span>
+          Join <span className="display-gradient">Cred-ible Control</span>
         </h1>
         <p className="mt-3 text-sm leading-relaxed muted">
           Register your organization profile to run borrower intelligence, scenario simulations, and loan matchmaking.

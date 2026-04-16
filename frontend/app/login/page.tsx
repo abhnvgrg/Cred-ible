@@ -58,9 +58,9 @@ export default function LoginPage() {
   return (
     <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[1fr_0.95fr]">
       <SurfaceCard className="hidden lg:block">
-        <span className="eyebrow">Luminal Access</span>
+        <span className="eyebrow">Cred-ible Access</span>
         <h1 className="headline mt-4 text-5xl font-extrabold leading-tight">
-          Welcome back to <span className="display-gradient">BharatCredit</span>
+          Welcome back to <span className="display-gradient">Cred-ible</span>
         </h1>
         <p className="mt-4 text-base leading-relaxed muted">
           Sign in to review AI score decisions, run simulations, and unlock lender-ready summaries for underserved
@@ -73,7 +73,7 @@ export default function LoginPage() {
 
       <SurfaceCard className="max-w-xl">
         <h2 className="headline text-3xl font-extrabold">Sign in</h2>
-        <p className="mt-2 text-sm muted">Enter your BharatCredit workspace credentials.</p>
+        <p className="mt-2 text-sm muted">Enter your Cred-ible workspace credentials.</p>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <label className="form-label">
             <span>Email address</span>

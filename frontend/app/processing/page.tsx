@@ -44,7 +44,7 @@ function isLikelyBackendAvailabilityIssue(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const message = error.message.toLowerCase();
   return (
-    message.includes("unable to reach bharatcredit api") ||
+    message.includes("unable to reach cred-ible api") ||
     message.includes("timed out") ||
     message.includes("api request failed (502)") ||
     message.includes("api request failed (503)") ||

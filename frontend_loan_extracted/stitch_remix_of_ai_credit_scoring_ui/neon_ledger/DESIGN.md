@@ -1,4 +1,4 @@
-# Design System Document: The Luminal Logic Framework
+# Design System Document: The Cred-ible Framework
 
 ## 1. Overview & Creative North Star: "The Digital Alchemist"
 This design system is built to move beyond the cold, utilitarian nature of traditional fintech. Our Creative North Star is **"The Digital Alchemist"**—a philosophy that blends the high-stakes precision of AI credit scoring with a premium, tactile editorial experience. 

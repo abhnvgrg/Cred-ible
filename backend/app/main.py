@@ -31,7 +31,7 @@ from .schemas import (
 )
 
 app = FastAPI(
-    title="BharatCredit Scoring API",
+    title="Cred-ible Scoring API",
     version="0.1.0",
     description="Dynamic alternative credit scoring API for credit-invisible borrowers.",
 )

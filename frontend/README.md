@@ -1,6 +1,6 @@
-# BharatCredit Frontend
+# Cred-ible Frontend
 
-This is the Next.js frontend for the BharatCredit application.
+This is the Next.js frontend for the Cred-ible application.
 
 ## Local development
 

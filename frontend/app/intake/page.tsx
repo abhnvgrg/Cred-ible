@@ -174,7 +174,7 @@ export default function IntakePage() {
         <span className="eyebrow">Borrower intake</span>
         <h1 className="headline mt-4 text-4xl font-extrabold">Capture alternative-credit signals</h1>
         <p className="mt-2 text-sm muted">
-          Collect UPI, GST, repayment, utility, and employment signals before triggering the BharatCredit AI scoring
+          Collect UPI, GST, repayment, utility, and employment signals before triggering the Cred-ible AI scoring
           pipeline.
         </p>
         <div className="mt-4 flex flex-wrap gap-3">

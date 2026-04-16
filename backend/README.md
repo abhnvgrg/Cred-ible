@@ -1,4 +1,4 @@
-# BharatCredit Backend
+# Cred-ible Backend
 
 This backend service is built with FastAPI and provides credit scoring, authentication, model training, and marketplace offer APIs.
 
