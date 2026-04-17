@@ -1,7 +1,7 @@
 import { SurfaceTile } from "@/components/ui/primitives";
-import type { AgentScoreOutput } from "@/lib/scoring";
+import type { ScoreResponse } from "@/lib/scoring";
 
-export function ScoreBreakdown({ response }: { response: AgentScoreOutput }) {
+export function ScoreBreakdown({ response }: { response: ScoreResponse }) {
   return (
     <div className="flex flex-col gap-6 h-full">
       {/* Executive Summary */}
