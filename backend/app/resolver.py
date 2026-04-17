@@ -17,14 +17,54 @@ def _scale_to_credit_band(score_0_100: float) -> int:
     return max(300, min(900, scaled))
 
 
-def _loan_limit_from_score(final_score: int) -> str:
+def _format_inr(value: int) -> str:
+    number = str(max(0, int(round(value))))
+    if len(number) <= 3:
+        return f"₹{number}"
+
+    last_three = number[-3:]
+    remaining = number[:-3]
+    groups: list[str] = []
+    while len(remaining) > 2:
+        groups.insert(0, remaining[-2:])
+        remaining = remaining[:-2]
+    if remaining:
+        groups.insert(0, remaining)
+    return f"₹{','.join(groups + [last_three])}"
+
+
+def _base_loan_band(final_score: int) -> tuple[int, int]:
     if final_score < 500:
-        return "₹20,000 - ₹50,000"
+        return (20_000, 50_000)
     if final_score < 650:
-        return "₹50,000 - ₹1,50,000"
+        return (50_000, 150_000)
     if final_score < 750:
-        return "₹1,50,000 - ₹3,00,000"
-    return "₹3,00,000 - ₹6,00,000"
+        return (150_000, 300_000)
+    if final_score < 820:
+        return (220_000, 450_000)
+    return (300_000, 650_000)
+
+
+def _loan_limit_from_profile(final_score: int, payload: BorrowerSignalInput) -> str:
+    base_min, base_max = _base_loan_band(final_score)
+    monthly_income = payload.employment.monthly_income_inr
+    income_factor = 0.8 + min(0.8, monthly_income / 150_000)
+    stability_factor = 0.9 + (
+        ((payload.employment.income_stability_score + payload.rent.on_time_payment_ratio) / 2) * 0.2
+    )
+    stress_penalty = min(
+        0.28,
+        (payload.rent.longest_gap_months * 0.025)
+        + (payload.rent.late_payments_last_24m * 0.008)
+        + max(0.0, 0.95 - payload.existing_emi_on_time_ratio) * 0.5,
+    )
+    profile_multiplier = max(0.75, min(1.75, income_factor * stability_factor * (1 - stress_penalty)))
+
+    adjusted_min = int(round(base_min * profile_multiplier))
+    adjusted_max = int(round(base_max * profile_multiplier))
+    if adjusted_max - adjusted_min < 40_000:
+        adjusted_max = adjusted_min + 40_000
+    return f"{_format_inr(adjusted_min)} - {_format_inr(adjusted_max)}"
 
 
 def _base_confidence(scores: list[AgentScoreOutput]) -> str:
@@ -58,6 +98,146 @@ def _lifestyle_reliability(payload: BorrowerSignalInput, lifestyle: AgentScoreOu
         + (1 - payload.mobile.risky_app_usage_score) * 0.15
     )
     return CONFIDENCE_WEIGHT[lifestyle.confidence] + (behavior_quality * 0.25)
+
+
+def _top_unique_messages(candidates: list[tuple[float, str]], limit: int = 3) -> list[str]:
+    if not candidates:
+        return []
+
+    selected: list[str] = []
+    seen: set[str] = set()
+    for _, message in sorted(candidates, key=lambda item: item[0], reverse=True):
+        if message in seen:
+            continue
+        selected.append(message)
+        seen.add(message)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
+def _derive_positive_factors(
+    payload: BorrowerSignalInput,
+    income: AgentScoreOutput,
+    repayment: AgentScoreOutput,
+    lifestyle: AgentScoreOutput,
+) -> list[str]:
+    candidates: list[tuple[float, str]] = []
+    if income.score >= 80:
+        candidates.append(
+            (
+                income.score / 100,
+                (
+                    f"Income stability is strong ({income.score}/100) with "
+                    f"{payload.upi.transaction_frequency_per_month} UPI transactions/month."
+                ),
+            )
+        )
+    if repayment.score >= 80:
+        on_time_pct = int(round(payload.rent.on_time_payment_ratio * 100))
+        candidates.append(
+            (
+                repayment.score / 100,
+                f"Repayment discipline is healthy with {on_time_pct}% on-time rent payments.",
+            )
+        )
+    if lifestyle.score >= 80:
+        candidates.append(
+            (
+                lifestyle.score / 100,
+                (
+                    "Digital behavior quality is supportive (good app usage mix and controlled "
+                    "risky-app exposure)."
+                ),
+            )
+        )
+    if payload.employment.income_proof_type != "self_declared":
+        candidates.append((0.76, "Income proof is document-backed, improving lender confidence."))
+    if payload.gst and payload.gst.is_applicable and payload.gst.missed_filings_last_12m == 0:
+        candidates.append((0.74, "GST compliance is consistent with no missed filings in the last 12 months."))
+    if payload.upi.monthly_volume_trend_pct > 0:
+        candidates.append(
+            (
+                min(0.9, 0.65 + (payload.upi.monthly_volume_trend_pct / 100)),
+                f"UPI transaction volume trend is positive at {payload.upi.monthly_volume_trend_pct:.0f}%.",
+            )
+        )
+    if payload.rent.tenancy_months >= 24:
+        candidates.append((0.7, f"Stable tenancy history observed over {payload.rent.tenancy_months} months."))
+
+    top = _top_unique_messages(candidates)
+    return top if top else ["Signals show stable income and repayment behavior."]
+
+
+def _derive_risk_factors(
+    payload: BorrowerSignalInput,
+    income: AgentScoreOutput,
+    repayment: AgentScoreOutput,
+    lifestyle: AgentScoreOutput,
+    compliance: ComplianceAgentOutput,
+) -> list[str]:
+    candidates: list[tuple[float, str]] = []
+    has_late_rent_flag = any("late rent payment" in flag.lower() for flag in repayment.flags)
+    has_payment_gap_flag = any("payment gap" in flag.lower() for flag in repayment.flags)
+    for flag in income.flags:
+        candidates.append((0.9, flag))
+    for flag in repayment.flags:
+        candidates.append((0.95, flag))
+    for flag in lifestyle.flags:
+        candidates.append((0.85, flag))
+    for flag in compliance.flags:
+        candidates.append((1.0, flag))
+
+    if payload.rent.late_payments_last_24m > 0 and not has_late_rent_flag:
+        candidates.append(
+            (
+                min(0.95, 0.7 + (payload.rent.late_payments_last_24m / 20)),
+                f"{payload.rent.late_payments_last_24m} late rent payment(s) in the last 24 months.",
+            )
+        )
+    if payload.rent.longest_gap_months > 0 and not has_payment_gap_flag:
+        candidates.append(
+            (
+                min(0.98, 0.72 + (payload.rent.longest_gap_months / 10)),
+                f"Rental payment gap reached {payload.rent.longest_gap_months} month(s).",
+            )
+        )
+    if payload.existing_emi_on_time_ratio < 0.95:
+        candidates.append(
+            (
+                min(0.92, 0.7 + ((0.95 - payload.existing_emi_on_time_ratio) * 2)),
+                f"Existing EMI on-time ratio is {payload.existing_emi_on_time_ratio:.2f}, indicating tighter buffer.",
+            )
+        )
+    if payload.mobile.risky_app_usage_score >= 0.2:
+        candidates.append(
+            (
+                min(0.9, 0.65 + payload.mobile.risky_app_usage_score),
+                (
+                    "Risky app usage pattern is higher than preferred and should be "
+                    "kept under control."
+                ),
+            )
+        )
+    if payload.gst and payload.gst.is_applicable and payload.gst.missed_filings_last_12m > 0:
+        candidates.append(
+            (
+                min(0.9, 0.7 + (payload.gst.missed_filings_last_12m / 20)),
+                f"GST filing irregularity observed ({payload.gst.missed_filings_last_12m} missed filing(s)).",
+            )
+        )
+    if payload.upi.monthly_volume_trend_pct < 0:
+        candidates.append(
+            (
+                min(0.9, 0.7 + (abs(payload.upi.monthly_volume_trend_pct) / 100)),
+                f"UPI transaction volume trend is negative at {payload.upi.monthly_volume_trend_pct:.0f}%.",
+            )
+        )
+    if compliance.fraud_risk != "low":
+        candidates.append((0.96, f"Compliance agent marked {compliance.fraud_risk} fraud-risk level."))
+
+    top = _top_unique_messages(candidates)
+    return top if top else ["No material repayment or compliance stress indicators detected."]
 
 
 def resolve_scores(
@@ -114,7 +294,9 @@ def resolve_scores(
         rbi_flags.append("Potential RBI non-compliance in submitted attributes")
 
     final_score = _scale_to_credit_band(final_internal)
-    recommended_loan_limit = _loan_limit_from_score(final_score)
+    recommended_loan_limit = _loan_limit_from_profile(final_score, payload)
+    positive_factors = _derive_positive_factors(payload, income, repayment, lifestyle)
+    risk_factors = _derive_risk_factors(payload, income, repayment, lifestyle, compliance)
     compliance_status = "pass" if compliance.rbi_compliant and compliance.fraud_risk != "high" else "review"
 
     explanation = (
@@ -134,6 +316,8 @@ def resolve_scores(
             compliance=compliance_status,
         ),
         rbi_flags=rbi_flags,
+        positive_factors=positive_factors,
+        risk_factors=risk_factors,
         recommended_loan_limit=recommended_loan_limit,
         processing_time_ms=processing_time_ms,
         disclaimer=DISCLAIMER,

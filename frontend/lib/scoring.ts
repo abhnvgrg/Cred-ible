@@ -109,8 +109,8 @@ export interface StoredScoreResult {
   fallbackReason?: string | null;
 }
 
-const INTAKE_PAYLOAD_KEY = "bharatcredit:intake-payload:v1";
-const SCORE_RESULT_KEY = "bharatcredit:score-result:v1";
+const INTAKE_PAYLOAD_KEY = "cred-ible:intake-payload:v1";
+const SCORE_RESULT_KEY = "cred-ible:score-result:v1";
 
 function setSessionStorageValue(key: string, value: string): boolean {
   if (typeof window === "undefined") return false;

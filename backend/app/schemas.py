@@ -100,6 +100,8 @@ class ScoreResponse(BaseModel):
     explanation: str
     agent_breakdown: AgentBreakdown
     rbi_flags: list[str] = Field(default_factory=list)
+    positive_factors: list[str] = Field(default_factory=list)
+    risk_factors: list[str] = Field(default_factory=list)
     recommended_loan_limit: str
     processing_time_ms: int = Field(ge=0)
     disclaimer: str

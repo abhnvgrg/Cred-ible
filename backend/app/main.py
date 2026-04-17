@@ -31,7 +31,7 @@ from .schemas import (
 )
 
 app = FastAPI(
-    title="BharatCredit Scoring API",
+    title="Cred-ible Scoring API",
     version="0.1.0",
     description="Dynamic alternative credit scoring API for credit-invisible borrowers.",
 )
@@ -39,8 +39,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://127.0.0.1:3000",
-        "http://localhost:3000",
+        "https://cred-ible.vercel.app"
     ],
     allow_credentials=False,
     allow_methods=["*"],
@@ -48,6 +47,16 @@ app.add_middleware(
 )
 
 DEMO_PERSONAS = load_personas()
+
+
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {
+        "service": "Cred-ible Scoring API",
+        "status": "ok",
+        "health": "/health",
+        "docs": "/docs",
+    }
 
 
 @app.get("/health")

@@ -11,7 +11,7 @@ export interface AuthSession {
   message: string;
 }
 
-const AUTH_SESSION_KEY = "bharatcredit:auth-session:v1";
+const AUTH_SESSION_KEY = "cred-ible:auth-session:v1";
 
 function setSessionStorageValue(key: string, value: string): boolean {
   if (typeof window === "undefined") return false;

@@ -15,8 +15,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "BharatCredit",
-  description: "BharatCredit alternative credit intelligence"
+  title: "Cred-ible",
+  description: "Cred-ible alternative credit intelligence"
 };
 
 export default function RootLayout({
@@ -32,7 +32,7 @@ export default function RootLayout({
             <div className="app-header-inner flex items-center justify-between w-full">
               <div className="flex items-center gap-8">
                 <Link href="/" className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
-                  Luminal Logic
+                  Cred-ible
                 </Link>
                 <nav className="hidden md:flex items-center gap-6 text-sm text-gray-400">
                   <Link href="/credit-dashboard" className="text-indigo-300 border border-indigo-500/30 border-dashed px-3 py-1 rounded">

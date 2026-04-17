@@ -81,14 +81,14 @@ export default function MarketplacePage() {
         <span className="eyebrow">Loan marketplace</span>
         <h1 className="headline mt-4 text-4xl font-extrabold">Matched lending opportunities</h1>
         <p className="mt-3 max-w-3xl text-sm leading-relaxed muted">
-          Offers are ranked by BharatCredit signal confidence and eligibility compatibility across lender partner
+          Offers are ranked by Cred-ible signal confidence and eligibility compatibility across lender partner
           policy profiles.
         </p>
       </SurfaceCard>
 
       <SurfaceTile className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.14em] muted">Current luminal score</p>
+          <p className="text-xs uppercase tracking-[0.14em] muted">Current Cred-ible score</p>
           <p className="headline mt-1 text-4xl font-extrabold display-gradient">{data?.score_used ?? score}</p>
         </div>
         <div className="flex flex-wrap gap-3">

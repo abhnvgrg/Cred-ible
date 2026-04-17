@@ -40,7 +40,7 @@ def authenticate_user(payload: LoginRequest) -> AuthResponse:
         user_id=f"user_{uuid4().hex[:10]}",
         full_name=full_name,
         work_email=payload.email.strip().lower(),
-        organization=organization or "BharatCredit Partner",
+        organization=organization or "Cred-ible Partner",
         role="analyst",
         session_token=token_urlsafe(32),
         expires_in_seconds=8 * 60 * 60,

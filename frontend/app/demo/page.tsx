@@ -89,7 +89,7 @@ export default function DemoPage() {
     if (isLoading) {
       return (
         <SurfaceCard className="text-sm muted">
-          <p>Loading persona profiles from BharatCredit API...</p>
+          <p>Loading persona profiles from Cred-ible API...</p>
         </SurfaceCard>
       );
     }
@@ -121,7 +121,7 @@ export default function DemoPage() {
         <span className="eyebrow">Interactive simulation</span>
         <h1 className="headline mt-4 text-4xl font-extrabold">Choose a borrower persona</h1>
         <p className="mt-3 max-w-3xl text-sm leading-relaxed muted sm:text-base">
-          Each profile maps to the same processing pipeline used by BharatCredit. Live API data is used when
+          Each profile maps to the same processing pipeline used by Cred-ible. Live API data is used when
           available, with graceful fallback to trusted local persona defaults.
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
