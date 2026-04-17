@@ -1,14 +1,14 @@
-# BharatCredit 🇮🇳
+# cred-ible 🇮🇳
 
 **Unlock trust for India's credit-invisible borrowers.**
 
-BharatCredit is an alternative credit scoring engine that translates transaction behavior, repayment discipline, and compliance patterns into a fast lending decision layer. Built to serve freelancers, street merchants, and micro-entrepreneurs who lack traditional credit histories, this platform leverages ML models backed by FastAPI and a modern frontend to deliver lightning-fast underwriting decisions.
+cred-ible is an alternative credit scoring engine that translates transaction behavior, repayment discipline, and compliance patterns into a fast lending decision layer. Built to serve freelancers, street merchants, and micro-entrepreneurs who lack traditional credit histories, this platform leverages ML models backed by FastAPI and a modern frontend to deliver lightning-fast underwriting decisions.
 
-![Dashboard Preview](https://via.placeholder.com/1200x600?text=BharatCredit+Dashboard+Preview)
+![Dashboard Preview](https://via.placeholder.com/1200x600?text=cred-ible+Dashboard+Preview)
 
 ## 🌟 Key Features
 
-- **Luminal Logic Engine**: Process alternative data (UPI, GST, utility payments) in real-time to generate a 'Logic Score'.
+- **Cred-ible Engine**: Process alternative data (UPI, GST, utility payments) in real-time to generate a 'Logic Score'.
 - **Real-Time Analysis**: Processing latency of under 1.2s for instantaneous borrowing decisions.
 - **What-If Simulator**: Advanced journey tool for predicting how changes in cash flow or behavior affect credit risk.
 - **Loan Marketplace**: Directly connects evaluated users with customized loan offers based on their generated logic score.
@@ -80,7 +80,7 @@ npm run dev
 
 ## 🧠 Model Training
 
-BharatCredit uses an integrated machine learning model that predicts risk based on applicant data (low, medium, high). 
+cred-ible uses an integrated machine learning model that predicts risk based on applicant data (low, medium, high). 
 
 To build or refresh the model locally based on demo data (found in the root directory like `credit_demo_dataset.xlsx`), run the following script from the `backend` directory:
 
@@ -91,7 +91,7 @@ python train_model.py --dataset ..\credit_demo_dataset.xlsx
 ## 📁 Repository Structure
 
 ```
-BharatCredit/
+cred-ible/
 ├── backend/                   # FastAPI backend service
 │   ├── app/                   # API routes, Agents, ML handlers, and Schemas
 │   ├── train_model.py         # ML model training script
@@ -106,7 +106,7 @@ BharatCredit/
 
 ## ⚖️ Disclaimer & RBI Compliance
 
-*BharatCredit outputs are decision-support insights and must be combined with full lender underwriting under prevailing RBI (Reserve Bank of India) digital lending guidance. Demo and assessment inputs may be retained for up to 30 days for audits, grievance resolution, and model monitoring.*
+*cred-ible outputs are decision-support insights and must be combined with full lender underwriting under prevailing RBI (Reserve Bank of India) digital lending guidance. Demo and assessment inputs may be retained for up to 30 days for audits, grievance resolution, and model monitoring.*
 
 ---
 **Made with ❤️ for Hackathon-08**
