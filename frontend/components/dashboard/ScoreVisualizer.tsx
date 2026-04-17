@@ -1,7 +1,7 @@
 import { SurfaceTile } from "@/components/ui/primitives";
-import type { AgentScoreOutput } from "@/lib/scoring";
+import type { ScoreResponse } from "@/lib/scoring";
 
-export function ScoreVisualizer({ response }: { response: AgentScoreOutput }) {
+export function ScoreVisualizer({ response }: { response: ScoreResponse }) {
   return (
     <SurfaceTile className="flex flex-col items-center justify-center py-14 bg-slate-900/50 border border-slate-800/80 rounded-2xl relative shadow-sm">
       <div className="relative w-64 h-64 mx-auto mb-8">

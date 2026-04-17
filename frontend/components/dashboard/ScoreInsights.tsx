@@ -1,7 +1,7 @@
 import { SurfaceTile } from "@/components/ui/primitives";
-import type { AgentScoreOutput } from "@/lib/scoring";
+import type { ScoreResponse } from "@/lib/scoring";
 
-export function ScoreInsights({ response }: { response: AgentScoreOutput }) {
+export function ScoreInsights({ response }: { response: ScoreResponse }) {
   return (
     <>
       {/* Positive Factors */}
