@@ -25,6 +25,8 @@ const INITIAL_STATE: RegisterFormState = {
 export default function RegisterPage() {
   const router = useRouter();
   const [form, setForm] = useState<RegisterFormState>(INITIAL_STATE);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -106,27 +108,73 @@ export default function RegisterPage() {
           </label>
           <label className="form-label">
             <span>Password</span>
-            <input
-              type="password"
-              className="form-input"
-              placeholder="••••••••••"
-              value={form.password}
-              onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
-              required
-              minLength={8}
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                className="form-input pr-11"
+                placeholder="••••••••••"
+                value={form.password}
+                onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                required
+                minLength={8}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+              >
+                {showPassword ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m3 3 18 18" />
+                    <path d="M10.58 10.58a2 2 0 0 0 2.83 2.83" />
+                    <path d="M9.88 5.09A10.94 10.94 0 0 1 12 4c7 0 10 8 10 8a17.89 17.89 0 0 1-2.16 3.19" />
+                    <path d="M6.61 6.61A18.7 18.7 0 0 0 2 12s3 8 10 8a9.74 9.74 0 0 0 5.39-1.61" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 12s3-8 10-8 10 8 10 8-3 8-10 8-10-8-10-8Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </label>
           <label className="form-label">
             <span>Confirm password</span>
-            <input
-              type="password"
-              className="form-input"
-              placeholder="••••••••••"
-              value={form.confirm_password}
-              onChange={(event) => setForm((prev) => ({ ...prev, confirm_password: event.target.value }))}
-              required
-              minLength={8}
-            />
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                className="form-input pr-11"
+                placeholder="••••••••••"
+                value={form.confirm_password}
+                onChange={(event) => setForm((prev) => ({ ...prev, confirm_password: event.target.value }))}
+                required
+                minLength={8}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                aria-pressed={showConfirmPassword}
+              >
+                {showConfirmPassword ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m3 3 18 18" />
+                    <path d="M10.58 10.58a2 2 0 0 0 2.83 2.83" />
+                    <path d="M9.88 5.09A10.94 10.94 0 0 1 12 4c7 0 10 8 10 8a17.89 17.89 0 0 1-2.16 3.19" />
+                    <path d="M6.61 6.61A18.7 18.7 0 0 0 2 12s3 8 10 8a9.74 9.74 0 0 0 5.39-1.61" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 12s3-8 10-8 10 8 10 8-3 8-10 8-10-8-10-8Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </label>
           <button type="submit" className="btn-primary sm:col-span-2" disabled={isSubmitting}>
             {isSubmitting ? "Creating account..." : "Create account"}
