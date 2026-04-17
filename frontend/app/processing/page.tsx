@@ -19,6 +19,7 @@ const AGENTS = [
 
 const MIN_DURATION_MS = 3200;
 const NAV_DELAY_MS = 600;
+const MISSING_PAYLOAD_REDIRECT_MS = 1800;
 const REQUEST_TIMEOUT_MS = 12000;
 
 function statusBadgeClass(status: AgentStatus): string {
@@ -75,6 +76,7 @@ function ProcessingPageContent() {
   const [agentStatuses, setAgentStatuses] = useState<AgentStatus[]>(AGENTS.map(() => "pending"));
   const [statusMessage, setStatusMessage] = useState("Preparing scoring workflow...");
   const [error, setError] = useState<string | null>(null);
+  const [missingPayload, setMissingPayload] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   const progressPercentage = useMemo(() => {
@@ -120,6 +122,7 @@ function ProcessingPageContent() {
 
     const runScoring = async () => {
       setError(null);
+      setMissingPayload(false);
       setAgentStatuses(AGENTS.map(() => "pending"));
       setStatusMessage(persona ? `Loading demo persona: ${toDisplayName(persona)}` : "Loading intake payload");
 
@@ -155,7 +158,14 @@ function ProcessingPageContent() {
         } else {
           const payload = loadIntakePayload();
           if (!payload) {
-            throw new Error("No intake payload found. Please complete the intake form first.");
+            setMissingPayload(true);
+            setStatusMessage("No intake payload found. Redirecting to intake...");
+            setAgentStatuses(AGENTS.map(() => "pending"));
+            const redirectTimer = window.setTimeout(() => {
+              if (!cancelled) router.replace("/intake");
+            }, MISSING_PAYLOAD_REDIRECT_MS);
+            timers.push(redirectTimer);
+            return;
           }
 
           fallbackPayload = payload;
@@ -258,6 +268,21 @@ function ProcessingPageContent() {
                 Use persona demo
               </ActionLink>
             ) : null}
+          </div>
+        </SurfaceTile>
+      ) : null}
+
+      {missingPayload ? (
+        <SurfaceTile className="border border-outline-variant/35 bg-surface-low/80">
+          <p className="headline text-lg font-bold text-slate-100">Let&apos;s start your first assessment</p>
+          <p className="mt-2 text-sm muted">We&apos;ll guide you to the right starting point to begin scoring.</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <ActionLink href="/intake" className="text-sm">
+              Start intake
+            </ActionLink>
+            <ActionLink href="/persona-selection" variant="secondary" className="text-sm">
+              Try demo persona
+            </ActionLink>
           </div>
         </SurfaceTile>
       ) : null}

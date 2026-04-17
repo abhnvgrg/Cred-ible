@@ -39,7 +39,11 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://cred-ible.vercel.app"
+        "https://cred-ible.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
     ],
     allow_credentials=False,
     allow_methods=["*"],
