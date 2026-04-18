@@ -7,7 +7,9 @@ from app.ml_model import ModelTrainingError, train_model
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train Cred-ible risk model from an Excel dataset.")
+    parser = argparse.ArgumentParser(
+        description="Train Cred-ible risk model from a supported Excel or CSV dataset."
+    )
     parser.add_argument(
         "--dataset",
         type=str,
