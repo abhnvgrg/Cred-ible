@@ -9,6 +9,7 @@ from .schemas import (
 )
 
 CONFIDENCE_WEIGHT = {"high": 1.0, "medium": 0.7, "low": 0.4}
+BASE_SIGNAL_WEIGHT = {"income": 0.4, "repayment": 0.4, "lifestyle": 0.2}
 DISCLAIMER = "This score is indicative and not a guarantee of creditworthiness."
 
 
@@ -98,6 +99,65 @@ def _lifestyle_reliability(payload: BorrowerSignalInput, lifestyle: AgentScoreOu
         + (1 - payload.mobile.risky_app_usage_score) * 0.15
     )
     return CONFIDENCE_WEIGHT[lifestyle.confidence] + (behavior_quality * 0.25)
+
+
+def _normalized_signal_weights(
+    payload: BorrowerSignalInput,
+    income: AgentScoreOutput,
+    repayment: AgentScoreOutput,
+    lifestyle: AgentScoreOutput,
+) -> dict[str, float]:
+    reliability = {
+        "income": _income_reliability(payload, income),
+        "repayment": _repayment_reliability(payload, repayment),
+        "lifestyle": _lifestyle_reliability(payload, lifestyle),
+    }
+    confidence_boost = {
+        "income": 0.7 + (0.3 * CONFIDENCE_WEIGHT[income.confidence]),
+        "repayment": 0.7 + (0.3 * CONFIDENCE_WEIGHT[repayment.confidence]),
+        "lifestyle": 0.7 + (0.3 * CONFIDENCE_WEIGHT[lifestyle.confidence]),
+    }
+
+    raw_weights = {
+        signal: BASE_SIGNAL_WEIGHT[signal]
+        * confidence_boost[signal]
+        * (0.65 + 0.35 * min(1.0, reliability[signal] / 1.5))
+        for signal in BASE_SIGNAL_WEIGHT
+    }
+    total = max(1e-6, sum(raw_weights.values()))
+    return {signal: weight / total for signal, weight in raw_weights.items()}
+
+
+def _compliance_penalty(compliance: ComplianceAgentOutput) -> float:
+    penalty = float(len(compliance.flags)) * 1.2
+    if compliance.fraud_risk == "high":
+        penalty += 12.0
+    elif compliance.fraud_risk == "medium":
+        penalty += 6.0
+    if not compliance.rbi_compliant:
+        penalty += 8.0
+    return penalty
+
+
+def _resolved_confidence(
+    scores: list[AgentScoreOutput],
+    spread: int,
+    compliance: ComplianceAgentOutput,
+) -> str:
+    confidence_score = sum(CONFIDENCE_WEIGHT[s.confidence] for s in scores) / len(scores)
+    confidence_score -= min(0.2, max(0.0, spread - 16) * 0.01)
+    if compliance.fraud_risk == "medium":
+        confidence_score -= 0.1
+    elif compliance.fraud_risk == "high":
+        confidence_score -= 0.25
+    if not compliance.rbi_compliant:
+        confidence_score -= 0.2
+
+    if confidence_score >= 0.82:
+        return "high"
+    if confidence_score >= 0.55:
+        return "medium"
+    return "low"
 
 
 def _top_unique_messages(candidates: list[tuple[float, str]], limit: int = 3) -> list[str]:
@@ -249,48 +309,22 @@ def resolve_scores(
     processing_time_ms: int,
 ) -> ScoreResponse:
     scoring_agents = [income, repayment, lifestyle]
-    weighted_numerator = sum(s.score * CONFIDENCE_WEIGHT[s.confidence] for s in scoring_agents)
-    weighted_denominator = sum(CONFIDENCE_WEIGHT[s.confidence] for s in scoring_agents)
-    weighted_avg = weighted_numerator / max(weighted_denominator, 1e-6)
+    score_values = {"income": income.score, "repayment": repayment.score, "lifestyle": lifestyle.score}
+    spread = max(score_values.values()) - min(score_values.values())
+    signal_weights = _normalized_signal_weights(payload, income, repayment, lifestyle)
+    weighted_avg = sum(score_values[signal] * signal_weights[signal] for signal in score_values)
 
-    score_values = [income.score, repayment.score, lifestyle.score]
-    spread = max(score_values) - min(score_values)
-    conflict_detected = spread >= 25
+    # Penalize high disagreement smoothly instead of using hard conflict branches.
+    disagreement_penalty = max(0.0, spread - 18) * 0.22
+    compliance_penalty = _compliance_penalty(compliance)
+    final_internal = max(0.0, min(100.0, weighted_avg - disagreement_penalty - compliance_penalty))
 
-    if conflict_detected:
-        reliability_scores = {
-            "income": _income_reliability(payload, income),
-            "repayment": _repayment_reliability(payload, repayment),
-            "lifestyle": _lifestyle_reliability(payload, lifestyle),
-        }
-        most_reliable_name = max(reliability_scores, key=reliability_scores.get)
-        most_reliable_score = {
-            "income": income.score,
-            "repayment": repayment.score,
-            "lifestyle": lifestyle.score,
-        }[most_reliable_name]
-        final_internal = (weighted_avg * 0.6) + (most_reliable_score * 0.4)
-        conflict_explanation = (
-            f"Agent outputs showed divergence (spread {spread} points), so the resolver "
-            f"prioritized the {most_reliable_name} signal due to stronger reliability indicators."
-        )
-    else:
-        final_internal = weighted_avg
-        conflict_explanation = (
-            f"Agent outputs were reasonably aligned (spread {spread} points), so confidence-weighted averaging was used."
-        )
-
-    confidence = _base_confidence(scoring_agents)
+    confidence = _resolved_confidence(scoring_agents, spread, compliance)
     rbi_flags = list(compliance.flags)
     if compliance.fraud_risk == "high":
-        final_internal -= 15
-        confidence = "low"
         rbi_flags.append("High fraud-risk pattern detected")
-    elif compliance.fraud_risk == "medium":
-        final_internal -= 7
 
     if not compliance.rbi_compliant:
-        confidence = "low"
         rbi_flags.append("Potential RBI non-compliance in submitted attributes")
 
     final_score = _scale_to_credit_band(final_internal)
@@ -298,6 +332,12 @@ def resolve_scores(
     positive_factors = _derive_positive_factors(payload, income, repayment, lifestyle)
     risk_factors = _derive_risk_factors(payload, income, repayment, lifestyle, compliance)
     compliance_status = "pass" if compliance.rbi_compliant and compliance.fraud_risk != "high" else "review"
+    dominant_signal = max(signal_weights, key=signal_weights.get)
+    conflict_explanation = (
+        f"Resolver weights were income {signal_weights['income']:.2f}, repayment {signal_weights['repayment']:.2f}, "
+        f"and lifestyle {signal_weights['lifestyle']:.2f} with {dominant_signal} as the leading signal. "
+        f"Agent spread was {spread} points, resulting in a disagreement penalty of {disagreement_penalty:.1f}."
+    )
 
     explanation = (
         f"Income score is {income.score}, repayment score is {repayment.score}, and lifestyle score is "

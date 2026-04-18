@@ -137,6 +137,11 @@ class WhatIfRequest(BaseModel):
     income_shift: int = Field(ge=0, le=20)
     compliance_boost: int = Field(ge=0, le=20)
     debt_reduction: int = Field(ge=0, le=20)
+    base_income_score: int | None = Field(default=None, ge=0, le=100)
+    base_repayment_score: int | None = Field(default=None, ge=0, le=100)
+    base_lifestyle_score: int | None = Field(default=None, ge=0, le=100)
+    compliance_status: ComplianceStatus | None = None
+    rbi_flags_count: int = Field(default=0, ge=0, le=50)
 
 
 class WhatIfRecommendation(BaseModel):
@@ -152,6 +157,8 @@ class WhatIfResponse(BaseModel):
     projected_risk_level: FraudRiskLevel
     confidence: ConfidenceLevel
     explanation: str
+    projected_breakdown: AgentBreakdown
+    component_impacts: dict[str, int]
     recommendations: list[WhatIfRecommendation]
     processing_time_ms: int = Field(ge=0)
     disclaimer: str
