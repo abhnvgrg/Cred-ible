@@ -153,7 +153,7 @@ async def derive_statement_signals(
 
 
 @app.get("/marketplace/offers", response_model=MarketplaceResponse)
-async def marketplace_offers(score: int = 714) -> MarketplaceResponse:
+async def marketplace_offers(score: int = 670) -> MarketplaceResponse:
     return get_marketplace_offers(score)
 
 
