@@ -96,9 +96,12 @@ class AgentBreakdown(BaseModel):
 
 class ScoreResponse(BaseModel):
     final_score: int = Field(ge=300, le=900)
+    risk_level: FraudRiskLevel
     confidence: ConfidenceLevel
     explanation: str
     agent_breakdown: AgentBreakdown
+    component_weights: dict[str, float] = Field(default_factory=dict)
+    component_contributions: dict[str, float] = Field(default_factory=dict)
     rbi_flags: list[str] = Field(default_factory=list)
     positive_factors: list[str] = Field(default_factory=list)
     risk_factors: list[str] = Field(default_factory=list)

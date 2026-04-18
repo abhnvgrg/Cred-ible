@@ -22,6 +22,14 @@ def _scale_to_credit_band(score_0_100: float) -> int:
     return max(300, min(900, scaled))
 
 
+def _risk_level_from_score(score: int) -> str:
+    if score >= 760:
+        return "low"
+    if score >= 620:
+        return "medium"
+    return "high"
+
+
 def _format_inr(value: int) -> str:
     number = str(max(0, int(round(value))))
     if len(number) <= 3:
@@ -212,11 +220,17 @@ def resolve_scores(
         + (component_scores["repayment"] * COMPONENT_WEIGHTS["repayment"])
         + (component_scores["lifestyle"] * COMPONENT_WEIGHTS["lifestyle"])
     )
+    component_contributions = {
+        "income": round(component_scores["income"] * COMPONENT_WEIGHTS["income"], 2),
+        "repayment": round(component_scores["repayment"] * COMPONENT_WEIGHTS["repayment"], 2),
+        "lifestyle": round(component_scores["lifestyle"] * COMPONENT_WEIGHTS["lifestyle"], 2),
+    }
     spread = max(component_scores.values()) - min(component_scores.values())
     compliance_penalty = _compliance_penalty(compliance)
 
     final_internal = max(0.0, min(100.0, component_internal - compliance_penalty))
     final_score = _scale_to_credit_band(final_internal)
+    risk_level = _risk_level_from_score(final_score)
     confidence = _resolved_confidence(
         [income, repayment, lifestyle],
         spread=spread,
@@ -245,6 +259,7 @@ def resolve_scores(
 
     return ScoreResponse(
         final_score=final_score,
+        risk_level=risk_level,
         confidence=confidence,
         explanation=explanation,
         agent_breakdown=AgentBreakdown(
@@ -253,6 +268,8 @@ def resolve_scores(
             lifestyle=lifestyle.score,
             compliance=compliance_status,
         ),
+        component_weights={key: round(value, 4) for key, value in COMPONENT_WEIGHTS.items()},
+        component_contributions=component_contributions,
         rbi_flags=rbi_flags,
         positive_factors=positive_factors,
         risk_factors=risk_factors,
