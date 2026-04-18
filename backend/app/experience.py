@@ -79,6 +79,14 @@ def _confidence_from_delta(delta: int) -> ConfidenceLevel:
     return "low"
 
 
+def _risk_level_from_score(score: int) -> str:
+    if score >= 760:
+        return "low"
+    if score >= 620:
+        return "medium"
+    return "high"
+
+
 def run_what_if_simulation(payload: WhatIfRequest) -> WhatIfResponse:
     started = time.perf_counter()
 
@@ -90,6 +98,8 @@ def run_what_if_simulation(payload: WhatIfRequest) -> WhatIfResponse:
     projected_score = _clamp_score(payload.base_score + modifier)
     delta = projected_score - payload.base_score
     confidence = _confidence_from_delta(delta)
+    base_risk = _risk_level_from_score(payload.base_score)
+    projected_risk = _risk_level_from_score(projected_score)
 
     recommendations = [
         WhatIfRecommendation(
@@ -111,8 +121,9 @@ def run_what_if_simulation(payload: WhatIfRequest) -> WhatIfResponse:
 
     explanation = (
         f"Starting from {payload.base_score}, simulated adjustments produced a projected score of "
-        f"{projected_score} ({delta:+d}). The strongest effect came from compliance and income "
-        "stability movements, while debt stress reduction provided a supporting lift."
+        f"{projected_score} ({delta:+d}). Risk level moved from {base_risk} to {projected_risk}. "
+        "The strongest effect came from compliance and income stability movements, while debt stress "
+        "reduction provided a supporting lift."
     )
 
     processing_time_ms = int((time.perf_counter() - started) * 1000)
@@ -120,6 +131,7 @@ def run_what_if_simulation(payload: WhatIfRequest) -> WhatIfResponse:
         base_score=payload.base_score,
         projected_score=projected_score,
         score_delta=delta,
+        projected_risk_level=projected_risk,
         confidence=confidence,
         explanation=explanation,
         recommendations=recommendations,

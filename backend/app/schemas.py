@@ -149,6 +149,7 @@ class WhatIfResponse(BaseModel):
     base_score: int = Field(ge=300, le=900)
     projected_score: int = Field(ge=300, le=900)
     score_delta: int
+    projected_risk_level: FraudRiskLevel
     confidence: ConfidenceLevel
     explanation: str
     recommendations: list[WhatIfRecommendation]
@@ -202,3 +203,13 @@ class RiskPredictionResponse(BaseModel):
     predicted_risk: Literal["low", "medium", "high"]
     class_probabilities: dict[str, float]
     model_trained_at_utc: str
+
+
+SignalType = Literal["upi", "gst", "rent", "utilities", "employment"]
+
+
+class StatementDerivationResponse(BaseModel):
+    signal_type: SignalType
+    derived_fields: dict[str, float | int | str | bool]
+    summary: str
+    rows_processed: int = Field(ge=0)
