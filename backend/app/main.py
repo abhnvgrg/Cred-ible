@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .agents import run_all_agents
@@ -25,10 +25,13 @@ from .schemas import (
     RegisterRequest,
     RiskPredictionResponse,
     ScoreResponse,
+    SignalType,
+    StatementDerivationResponse,
     TrainModelResponse,
     WhatIfRequest,
     WhatIfResponse,
 )
+from .statement_parser import derive_signals_from_statement
 
 app = FastAPI(
     title="Cred-ible Scoring API",
@@ -124,8 +127,33 @@ async def what_if(payload: WhatIfRequest) -> WhatIfResponse:
     return run_what_if_simulation(payload)
 
 
+@app.post("/signals/derive", response_model=StatementDerivationResponse)
+async def derive_statement_signals(
+    signal_type: SignalType,
+    statement: UploadFile = File(...),
+) -> StatementDerivationResponse:
+    try:
+        content = await statement.read()
+        if not content:
+            raise ValueError("Uploaded statement is empty.")
+        derivation = derive_signals_from_statement(
+            signal_type=signal_type,
+            filename=statement.filename or "",
+            content=content,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return StatementDerivationResponse(
+        signal_type=signal_type,
+        derived_fields=derivation.derived_fields,
+        summary=derivation.summary,
+        rows_processed=derivation.rows_processed,
+    )
+
+
 @app.get("/marketplace/offers", response_model=MarketplaceResponse)
-async def marketplace_offers(score: int = 714) -> MarketplaceResponse:
+async def marketplace_offers(score: int = 670) -> MarketplaceResponse:
     return get_marketplace_offers(score)
 
 

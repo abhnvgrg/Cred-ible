@@ -1,6 +1,6 @@
 {
-  "holdout_accuracy": 1.0,
-  "holdout_macro_f1": 1.0,
-  "cross_val_accuracy_mean": 0.9598930481283423,
-  "cross_val_accuracy_std": 0.014499624886408095
+  "holdout_accuracy": 0.98568,
+  "holdout_macro_f1": 0.9790141518217185,
+  "cross_val_accuracy_mean": 0.9869199339882156,
+  "cross_val_accuracy_std": 0.002797900878881537
 }

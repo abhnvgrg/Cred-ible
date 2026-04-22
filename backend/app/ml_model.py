@@ -19,6 +19,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATASET_CANDIDATES = [
+    PROJECT_ROOT / "1000bor.csv",
     PROJECT_ROOT / "credit_score_demo_100b_5yr.xlsx",
     PROJECT_ROOT / "credit_demo_dataset.xlsx",
 ]
@@ -49,6 +50,7 @@ SHEETS_FUSED = [
     "Summary Analytics",
     "Scoring Parameters",
 ]
+FLAT_CSV_SOURCE = ["1000bor.csv (flat borrower dataset)"]
 
 
 class ModelTrainingError(RuntimeError):
@@ -440,8 +442,146 @@ def _load_scoring_parameter_constants(dataset_path: Path) -> dict[str, float]:
     return constants
 
 
+def _normalize_loan_decision(value: Any) -> str:
+    text = str(value).strip().lower()
+    if text in {"approved", "approve"}:
+        return "approved"
+    if text in {"conditionally approved", "conditional", "conditionally-approved"}:
+        return "conditionally_approved"
+    if text in {"under review", "review"}:
+        return "under_review"
+    if text in {"rejected", "declined", "decline"}:
+        return "rejected"
+    return "under_review"
+
+
+def _risk_from_decision_and_score(decision: str, credit_score: float | int | None) -> str:
+    normalized_decision = _normalize_loan_decision(decision)
+    numeric_score = float(credit_score) if credit_score is not None and not pd.isna(credit_score) else np.nan
+
+    if normalized_decision == "approved":
+        if not pd.isna(numeric_score) and numeric_score < 620:
+            return "medium"
+        return "low"
+    if normalized_decision in {"conditionally_approved", "under_review"}:
+        if not pd.isna(numeric_score) and numeric_score >= 760:
+            return "low"
+        if not pd.isna(numeric_score) and numeric_score < 560:
+            return "high"
+        return "medium"
+    return "high"
+
+
+def _load_flat_csv_dataset(dataset_path: Path) -> pd.DataFrame:
+    df = pd.read_csv(dataset_path)
+    required = [
+        "age",
+        "state",
+        "employment_type",
+        "work_experience_years",
+        "monthly_income_inr",
+        "credit_score",
+        "loan_decision",
+    ]
+    missing = [column for column in required if column not in df.columns]
+    if missing:
+        raise ModelTrainingError(
+            f"CSV dataset '{dataset_path.name}' is missing required columns: {', '.join(missing)}."
+        )
+
+    # Keep model-serving compatibility with BorrowerProfileInput by exposing the baseline profile fields.
+    df["occupation"] = df["employment_type"].astype(str).str.strip()
+    df["sector"] = df.get("loan_purpose", df["employment_type"]).astype(str).str.strip()
+    df["city"] = df["state"].astype(str).str.strip()
+    df["years_in_business"] = _safe_to_numeric(df["work_experience_years"])
+    df["has_gst"] = df.get("gst_filed_regularly", 0)
+    df["has_formal_rent"] = (
+        df.get("residence_type", "unknown").astype(str).str.strip().str.lower().eq("rented").astype(int)
+    )
+    df["has_bank_account"] = (_safe_to_numeric(df.get("bank_balance_avg_3m_inr", 0)) > 0).astype(int)
+
+    numeric_candidates = [
+        "age",
+        "num_dependents",
+        "work_experience_years",
+        "monthly_income_inr",
+        "bank_balance_avg_3m_inr",
+        "savings_rate_pct",
+        "upi_monthly_txn_count",
+        "upi_monthly_txn_value_inr",
+        "mobile_bill_ontime_pct",
+        "utility_bill_ontime_pct",
+        "credit_history_months",
+        "num_credit_accounts",
+        "credit_mix_score",
+        "credit_utilization_pct",
+        "num_hard_inquiries_12m",
+        "num_missed_payments_24m",
+        "num_defaults",
+        "existing_active_loans",
+        "loan_amount_requested_inr",
+        "loan_tenure_months",
+        "estimated_emi_inr",
+        "debt_to_income_ratio",
+        "credit_score",
+        "interest_rate_pct",
+        "years_in_business",
+    ]
+    for column in numeric_candidates:
+        if column in df.columns:
+            df[column] = _safe_to_numeric(df[column])
+
+    bool_candidates = [
+        "has_credit_card",
+        "has_secured_loan",
+        "gst_filed_regularly",
+        "has_gst",
+        "has_formal_rent",
+        "has_bank_account",
+    ]
+    for column in bool_candidates:
+        if column in df.columns:
+            df[column] = df[column].apply(_yes_no_to_bool)
+
+    df[TARGET_COLUMN] = [
+        _risk_from_decision_and_score(decision=value_decision, credit_score=value_score)
+        for value_decision, value_score in zip(df["loan_decision"], df.get("credit_score"))
+    ]
+    df[TARGET_COLUMN] = df[TARGET_COLUMN].apply(_normalize_risk_label)
+
+    required_not_null = [
+        "occupation",
+        "sector",
+        "age",
+        "city",
+        "state",
+        "monthly_income_inr",
+        "years_in_business",
+        TARGET_COLUMN,
+    ]
+    df = df.dropna(subset=required_not_null)
+    if df.empty:
+        raise ModelTrainingError(
+            f"CSV dataset '{dataset_path.name}' contains no usable records after cleaning."
+        )
+
+    if "applicant_id" in df.columns:
+        df["applicant_id"] = df["applicant_id"].apply(_normalize_borrower_id)
+
+    return df
+
+
+def _sources_for_dataset(dataset_path: Path) -> list[str]:
+    if dataset_path.suffix.lower() == ".csv":
+        return FLAT_CSV_SOURCE
+    return SHEETS_FUSED
+
+
 def load_dataset(dataset_path: Path | None = None) -> pd.DataFrame:
     resolved_path = resolve_dataset_path(dataset_path)
+    if resolved_path.suffix.lower() == ".csv":
+        return _load_flat_csv_dataset(resolved_path)
+
     profiles = _load_profiles(resolved_path)
     upi = _load_upi_features(resolved_path)
     gst = _load_gst_features(resolved_path)
@@ -505,6 +645,7 @@ def _build_pipeline(numeric_columns: list[str], categorical_columns: list[str]) 
 
 def train_model(dataset_path: Path | None = None) -> TrainResult:
     resolved_dataset_path = resolve_dataset_path(dataset_path)
+    sources_used = _sources_for_dataset(resolved_dataset_path)
     df = load_dataset(resolved_dataset_path)
     y = df[TARGET_COLUMN].copy()
     x = df.drop(columns=[TARGET_COLUMN, "initial_risk"], errors="ignore").copy()
@@ -567,7 +708,7 @@ def train_model(dataset_path: Path | None = None) -> TrainResult:
         "categorical_columns": categorical_columns,
         "classes": sorted(y.unique().tolist()),
         "dataset_path": str(resolved_dataset_path),
-        "sheets_fused": SHEETS_FUSED,
+        "sheets_fused": sources_used,
         "trained_at_utc": trained_at,
     }
     joblib.dump(artifact, MODEL_PATH)
@@ -585,7 +726,7 @@ def train_model(dataset_path: Path | None = None) -> TrainResult:
         classes=sorted(y.unique().tolist()),
         metrics=metrics,
         dataset_path=str(resolved_dataset_path),
-        sheets_fused=SHEETS_FUSED,
+        sheets_fused=sources_used,
         model_path=str(MODEL_PATH),
         metrics_path=str(METRICS_PATH),
         trained_at_utc=trained_at,

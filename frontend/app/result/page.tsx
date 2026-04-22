@@ -63,8 +63,8 @@ export default function ResultPage() {
 
       {/* Track & Timeline Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        <FinancialFootprint />
-        <RecentActivity />
+        <FinancialFootprint response={response} />
+        <RecentActivity response={response} />
       </div>
     </div>
   );

@@ -32,7 +32,7 @@ function formatInr(value: number): string {
 }
 
 export default function MarketplacePage() {
-  const [score, setScore] = useState(714);
+  const [score, setScore] = useState(670);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [data, setData] = useState<MarketplaceResponse | null>(null);

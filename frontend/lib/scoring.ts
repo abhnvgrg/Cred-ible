@@ -89,10 +89,15 @@ export interface AgentBreakdown {
 
 export interface ScoreResponse {
   final_score: number;
+  risk_level?: FraudRiskLevel;
   confidence: ConfidenceLevel;
   explanation: string;
   agent_breakdown: AgentBreakdown;
+  component_weights?: Record<string, number>;
+  component_contributions?: Record<string, number>;
   rbi_flags: string[];
+  positive_factors?: string[];
+  risk_factors?: string[];
   recommended_loan_limit: string;
   processing_time_ms: number;
   disclaimer: string;
@@ -203,13 +208,36 @@ function isAgentBreakdownValue(value: unknown): value is AgentBreakdown {
 
 function isScoreResponseValue(value: unknown): value is ScoreResponse {
   if (!isRecord(value)) return false;
+  const hasValidRiskLevel = value.risk_level === undefined || isFraudRiskLevel(value.risk_level);
+  const hasValidComponentWeights =
+    value.component_weights === undefined ||
+    (isRecord(value.component_weights) &&
+      Object.values(value.component_weights).every((weight) => typeof weight === "number"));
+  const hasValidComponentContributions =
+    value.component_contributions === undefined ||
+    (isRecord(value.component_contributions) &&
+      Object.values(value.component_contributions).every((contribution) => typeof contribution === "number"));
+  const hasValidPositiveFactors =
+    value.positive_factors === undefined ||
+    (Array.isArray(value.positive_factors) &&
+      value.positive_factors.every((factor) => typeof factor === "string"));
+  const hasValidRiskFactors =
+    value.risk_factors === undefined ||
+    (Array.isArray(value.risk_factors) &&
+      value.risk_factors.every((factor) => typeof factor === "string"));
+
   if (
     typeof value.final_score !== "number" ||
+    !hasValidRiskLevel ||
     !isConfidenceLevel(value.confidence) ||
     typeof value.explanation !== "string" ||
     !isAgentBreakdownValue(value.agent_breakdown) ||
+    !hasValidComponentWeights ||
+    !hasValidComponentContributions ||
     !Array.isArray(value.rbi_flags) ||
     !value.rbi_flags.every((flag) => typeof flag === "string") ||
+    !hasValidPositiveFactors ||
+    !hasValidRiskFactors ||
     typeof value.recommended_loan_limit !== "string" ||
     typeof value.processing_time_ms !== "number" ||
     typeof value.disclaimer !== "string" ||
