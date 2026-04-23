@@ -72,7 +72,6 @@ class BorrowerSignalInput(BaseModel):
     existing_emi_on_time_ratio: float = Field(default=1, ge=0, le=1)
     declared_attributes: dict[str, str] = Field(default_factory=dict)
 
-
 class AgentScoreOutput(BaseModel):
     score: int = Field(ge=0, le=100)
     confidence: ConfidenceLevel
