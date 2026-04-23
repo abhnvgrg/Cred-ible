@@ -145,6 +145,7 @@ function notificationTypeIcon(type: NotificationType) {
       </svg>
     );
   }
+
   if (type === "alert") {
     return (
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -154,6 +155,7 @@ function notificationTypeIcon(type: NotificationType) {
       </svg>
     );
   }
+
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M12 6v6l4 2" />
@@ -190,12 +192,15 @@ export function AppHeader() {
       if (event.key !== "Escape") {
         return;
       }
+
       setIsNotificationsOpen(false);
       setIsProfileOpen(false);
       setIsSettingsOpen(false);
       setIsMobileProfileOpen(false);
       setIsMobileNotificationsOpen(false);
+      setIsMobileMenuOpen(false);
     };
+
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, []);
@@ -203,13 +208,16 @@ export function AppHeader() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
+
       if (notificationsRef.current && !notificationsRef.current.contains(target)) {
         setIsNotificationsOpen(false);
       }
+
       if (profileRef.current && !profileRef.current.contains(target)) {
         setIsProfileOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -222,9 +230,11 @@ export function AppHeader() {
     if (activeNotificationTab === "unread") {
       return notifications.filter((notification) => !notification.read);
     }
+
     if (activeNotificationTab === "system") {
       return notifications.filter((notification) => notification.type === "system");
     }
+
     return notifications;
   }, [activeNotificationTab, notifications]);
 
@@ -243,6 +253,7 @@ export function AppHeader() {
     setIsSettingsOpen(true);
     setIsNotificationsOpen(false);
     setIsProfileOpen(false);
+    setIsMobileMenuOpen(false);
   };
 
   const saveSettings = () => {
@@ -257,6 +268,7 @@ export function AppHeader() {
 
   const regenerateApiKey = () => {
     const nextKey = `cred_live_${Math.random().toString(16).slice(2, 14)}`;
+
     setSettingsDraft((previous) => ({
       ...previous,
       integrations: {
@@ -276,19 +288,18 @@ export function AppHeader() {
         <div className="app-header-inner grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 md:gap-6">
           <Link
             href="/"
-            className="text-2xl md:text-[1.75rem] leading-none font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400"
+            className="text-2xl leading-none font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent md:text-[1.75rem]"
           >
             Cred-ible
           </Link>
 
-          <nav className="hidden md:flex items-center justify-center gap-2 text-sm text-gray-400">
+          <nav className="hidden items-center justify-center gap-2 text-sm text-gray-400 md:flex">
             {navItems.map((item) => {
               const active = item.isActive(pathname);
-              const baseClass =
-                "rounded-full border border-dashed px-3 py-1.5 font-semibold transition-all duration-200";
-              const activeClass = "text-indigo-200 border-indigo-400/45 bg-indigo-500/12 shadow-[0_0_14px_rgba(129,140,248,0.35)]";
+              const baseClass = "rounded-full border border-dashed px-3 py-1.5 font-semibold transition-all duration-200";
+              const activeClass = "border-indigo-400/45 bg-indigo-500/12 text-indigo-200 shadow-[0_0_14px_rgba(129,140,248,0.35)]";
               const inactiveClass =
-                "text-gray-400 border-indigo-500/0 hover:text-white hover:border-indigo-500/35 hover:bg-indigo-500/8 hover:shadow-[0_0_12px_rgba(129,140,248,0.25)]";
+                "border-indigo-500/0 text-gray-400 hover:border-indigo-500/35 hover:bg-indigo-500/8 hover:text-white hover:shadow-[0_0_12px_rgba(129,140,248,0.25)]";
 
               return (
                 <Link key={item.href} href={item.href} className={`${baseClass} ${active ? activeClass : inactiveClass}`}>
@@ -298,11 +309,11 @@ export function AppHeader() {
             })}
           </nav>
 
-          <div className="flex items-center justify-end gap-4 text-gray-400 relative">
-            <div className="hidden md:flex items-center gap-4">
+          <div className="relative flex items-center justify-end gap-4 text-gray-400">
+            <div className="hidden items-center gap-4 md:flex">
               <div className="relative" ref={notificationsRef}>
                 <button
-                  className="hover:text-white transition-colors relative"
+                  className="relative transition-colors hover:text-white"
                   aria-label="Notifications"
                   onClick={() => {
                     setIsNotificationsOpen((previous) => !previous);
@@ -325,6 +336,7 @@ export function AppHeader() {
                     <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
                   </svg>
                 </button>
+
                 {isNotificationsOpen ? (
                   <div className="absolute right-0 mt-3 w-[360px] rounded-2xl border border-indigo-400/25 bg-slate-950/95 p-4 shadow-[0_24px_56px_rgba(0,0,0,0.55)] backdrop-blur-xl">
                     <div className="flex items-center justify-between border-b border-indigo-200/15 pb-3">
@@ -333,6 +345,7 @@ export function AppHeader() {
                         Mark all as read
                       </button>
                     </div>
+
                     <div className="mt-3 flex items-center gap-2">
                       {(["all", "unread", "system"] as const).map((tab) => (
                         <button
@@ -348,6 +361,7 @@ export function AppHeader() {
                         </button>
                       ))}
                     </div>
+
                     <div className="mt-4 max-h-[320px] overflow-auto pr-1">
                       {groupedNotifications.Today.length === 0 && groupedNotifications.Earlier.length === 0 ? (
                         <div className="rounded-xl border border-indigo-300/20 bg-slate-900/60 p-4 text-sm text-slate-400">
@@ -365,7 +379,7 @@ export function AppHeader() {
                                       <span className="mt-0.5 text-indigo-200">{notificationTypeIcon(notification.type)}</span>
                                       <div className="flex-1">
                                         <p className="text-sm text-slate-100">{notification.message}</p>
-                                        <p className="text-xs text-slate-400 mt-1">{notification.timestamp}</p>
+                                        <p className="mt-1 text-xs text-slate-400">{notification.timestamp}</p>
                                       </div>
                                       {!notification.read ? <span className="h-2 w-2 rounded-full bg-indigo-400" /> : null}
                                     </div>
@@ -374,8 +388,9 @@ export function AppHeader() {
                               </div>
                             </div>
                           ) : null}
+
                           {groupedNotifications.Earlier.length > 0 ? (
-                            <div className="pt-3 border-t border-indigo-200/15">
+                            <div className="border-t border-indigo-200/15 pt-3">
                               <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Earlier</p>
                               <div className="space-y-2">
                                 {groupedNotifications.Earlier.map((notification) => (
@@ -384,7 +399,7 @@ export function AppHeader() {
                                       <span className="mt-0.5 text-indigo-200">{notificationTypeIcon(notification.type)}</span>
                                       <div className="flex-1">
                                         <p className="text-sm text-slate-100">{notification.message}</p>
-                                        <p className="text-xs text-slate-400 mt-1">{notification.timestamp}</p>
+                                        <p className="mt-1 text-xs text-slate-400">{notification.timestamp}</p>
                                       </div>
                                       {!notification.read ? <span className="h-2 w-2 rounded-full bg-indigo-400" /> : null}
                                     </div>
@@ -396,6 +411,7 @@ export function AppHeader() {
                         </>
                       )}
                     </div>
+
                     <div className="mt-3 border-t border-indigo-200/15 pt-3">
                       <Link href="/result" className="text-sm text-indigo-200 hover:text-white">
                         View all notifications
@@ -404,7 +420,8 @@ export function AppHeader() {
                   </div>
                 ) : null}
               </div>
-              <button className="hover:text-white transition-colors" aria-label="Settings" onClick={openSettings}>
+
+              <button className="transition-colors hover:text-white" aria-label="Settings" onClick={openSettings}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="18"
@@ -420,9 +437,10 @@ export function AppHeader() {
                   <circle cx="12" cy="12" r="3" />
                 </svg>
               </button>
+
               <div className="relative" ref={profileRef}>
                 <button
-                  className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden hover:bg-slate-600 transition-colors"
+                  className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-slate-700 transition-colors hover:bg-slate-600"
                   aria-label="Profile"
                   onClick={() => {
                     setIsProfileOpen((previous) => !previous);
@@ -444,33 +462,46 @@ export function AppHeader() {
                     <circle cx="12" cy="7" r="4" />
                   </svg>
                 </button>
+
                 {isProfileOpen ? (
                   <div className="absolute right-0 mt-3 w-[280px] rounded-2xl border border-indigo-400/25 bg-slate-950/95 p-3 shadow-[0_24px_56px_rgba(0,0,0,0.55)] backdrop-blur-xl">
-                    <div className="rounded-xl border border-indigo-300/20 bg-slate-900/70 p-3 mb-2">
+                    <div className="mb-2 rounded-xl border border-indigo-300/20 bg-slate-900/70 p-3">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-indigo-500/25 text-indigo-100 flex items-center justify-center font-semibold">AS</div>
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-500/25 font-semibold text-indigo-100">
+                          AS
+                        </div>
                         <div>
                           <p className="text-sm font-semibold text-slate-100">{savedSettings.account.name}</p>
                           <p className="text-xs text-slate-400">Credit Operations Lead</p>
                         </div>
                       </div>
                     </div>
+
                     <div className="flex flex-col">
-                      <Link href="/result" className="rounded-lg px-3 py-2 text-sm text-slate-200 hover:bg-indigo-500/15">My Profile</Link>
-                      <Link href="/landing-page" className="rounded-lg px-3 py-2 text-sm text-slate-200 hover:bg-indigo-500/15">Team / Organization</Link>
-                      <Link href="/loan-marketplace" className="rounded-lg px-3 py-2 text-sm text-slate-200 hover:bg-indigo-500/15">Billing / Subscription</Link>
-                      <Link href="/landing-page" className="rounded-lg px-3 py-2 text-sm text-slate-200 hover:bg-indigo-500/15">Help / Documentation</Link>
-                      <button className="text-left rounded-lg px-3 py-2 text-sm text-rose-300 hover:bg-rose-500/15">Logout</button>
+                      <Link href="/result" className="rounded-lg px-3 py-2 text-sm text-slate-200 hover:bg-indigo-500/15">
+                        My Profile
+                      </Link>
+                      <Link href="/landing-page" className="rounded-lg px-3 py-2 text-sm text-slate-200 hover:bg-indigo-500/15">
+                        Team / Organization
+                      </Link>
+                      <Link href="/loan-marketplace" className="rounded-lg px-3 py-2 text-sm text-slate-200 hover:bg-indigo-500/15">
+                        Billing / Subscription
+                      </Link>
+                      <Link href="/landing-page" className="rounded-lg px-3 py-2 text-sm text-slate-200 hover:bg-indigo-500/15">
+                        Help / Documentation
+                      </Link>
+                      <button className="rounded-lg px-3 py-2 text-left text-sm text-rose-300 hover:bg-rose-500/15">Logout</button>
                     </div>
                   </div>
                 ) : null}
               </div>
             </div>
+
             <button
               type="button"
               aria-label="Toggle navigation menu"
               aria-expanded={isMobileMenuOpen}
-              className="inline-flex md:hidden items-center justify-center rounded-xl border border-indigo-400/20 bg-indigo-400/10 p-2.5 text-indigo-100 transition-colors hover:bg-indigo-400/20"
+              className="inline-flex items-center justify-center rounded-xl border border-indigo-400/20 bg-indigo-400/10 p-2.5 text-indigo-100 transition-colors hover:bg-indigo-400/20 md:hidden"
               onClick={() => setIsMobileMenuOpen((previous) => !previous)}
             >
               <svg
@@ -501,12 +532,14 @@ export function AppHeader() {
           </div>
         </div>
       </header>
+
       <div
         className={`fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-300 md:hidden ${
           isMobileMenuOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={() => setIsMobileMenuOpen(false)}
       />
+
       <aside
         className={`fixed left-0 top-0 z-50 flex h-dvh w-[80vw] max-w-[320px] flex-col border-r border-indigo-200/20 bg-gradient-to-b from-slate-900/60 via-slate-950/55 to-slate-950/70 p-5 shadow-[0_26px_80px_rgba(0,0,0,0.5)] backdrop-blur-2xl transition-transform duration-300 ease-out md:hidden ${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
@@ -515,7 +548,7 @@ export function AppHeader() {
         <div className="flex items-center justify-between border-b border-indigo-200/15 pb-4">
           <Link
             href="/"
-            className="text-xl leading-none font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400"
+            className="text-xl leading-none font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent"
           >
             Cred-ible
           </Link>
@@ -541,9 +574,11 @@ export function AppHeader() {
             </svg>
           </button>
         </div>
+
         <nav className="mt-5 flex flex-1 flex-col gap-2">
           {navItems.map((item) => {
             const active = item.isActive(pathname);
+
             return (
               <Link
                 key={item.href}
@@ -554,163 +589,133 @@ export function AppHeader() {
                     : "border-indigo-400/0 bg-transparent text-slate-300 hover:border-indigo-400/30 hover:bg-indigo-500/10 hover:text-white"
                 }`}
               >
-export function AppHeader() {
-  const pathname = usePathname();
-
-  return (
-    <header className="app-header">
-      <div className="app-header-inner grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 md:gap-6">
-        <Link
-          href="/"
-          className="text-2xl md:text-[1.75rem] leading-none font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400"
-        >
-          Cred-ible
-        </Link>
-
-        <nav className="hidden md:flex items-center justify-center gap-2 text-sm text-gray-400">
-          {navItems.map((item) => {
-            const active = item.isActive(pathname);
-            const baseClass =
-              "rounded-full border border-dashed px-3 py-1.5 font-semibold transition-all duration-200";
-            const activeClass = "text-indigo-200 border-indigo-400/45 bg-indigo-500/12 shadow-[0_0_14px_rgba(129,140,248,0.35)]";
-            const inactiveClass =
-              "text-gray-400 border-indigo-500/0 hover:text-white hover:border-indigo-500/35 hover:bg-indigo-500/8 hover:shadow-[0_0_12px_rgba(129,140,248,0.25)]";
-
-            return (
-              <Link key={item.href} href={item.href} className={`${baseClass} ${active ? activeClass : inactiveClass}`}>
                 {item.label}
               </Link>
             );
           })}
         </nav>
-        <div className="mt-4 flex items-center gap-3 border-t border-indigo-200/15 pt-4">
-          <button
-            type="button"
-            aria-label="Settings"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-300/20 bg-indigo-300/10 text-indigo-100 transition-colors hover:bg-indigo-300/20"
-            onClick={openSettings}
-          >
 
-        <div className="flex items-center justify-end gap-4 text-gray-400">
-          <button className="hover:text-white transition-colors" aria-label="Notifications">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        <div className="mt-4 border-t border-indigo-200/15 pt-4">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              aria-label="Settings"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-300/20 bg-indigo-300/10 text-indigo-100 transition-colors hover:bg-indigo-300/20"
+              onClick={openSettings}
             >
-              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            aria-label="Profile"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-300/20 bg-indigo-300/10 text-indigo-100 transition-colors hover:bg-indigo-300/20"
-            onClick={() => setIsMobileProfileOpen((previous) => !previous)}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-            </svg>
-          </button>
-          <button className="hover:text-white transition-colors" aria-label="Settings">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              aria-label="Notifications"
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-300/20 bg-indigo-300/10 text-indigo-100 transition-colors hover:bg-indigo-300/20"
+              onClick={() => setIsMobileNotificationsOpen((previous) => !previous)}
             >
-              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-300/20 bg-indigo-300/10 text-indigo-100 transition-colors hover:bg-indigo-300/20 relative"
-            onClick={() => setIsMobileNotificationsOpen((previous) => !previous)}
-          >
-            {unreadCount > 0 ? <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-indigo-300" /> : null}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </button>
-          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#94a3b8"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              {unreadCount > 0 ? <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-indigo-300" /> : null}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              aria-label="Profile"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-300/20 bg-indigo-300/10 text-indigo-100 transition-colors hover:bg-indigo-300/20"
+              onClick={() => setIsMobileProfileOpen((previous) => !previous)}
             >
-              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-            </svg>
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </button>
+          </div>
+
+          {isMobileNotificationsOpen ? (
+            <div className="mt-4 rounded-xl border border-indigo-300/20 bg-slate-900/60 p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-100">Notifications</p>
+                <button className="text-xs text-indigo-200" onClick={markAllNotificationsRead}>
+                  Mark all as read
+                </button>
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {notifications.length === 0 ? <p className="text-xs text-slate-400">No notifications to show.</p> : null}
+                {notifications.slice(0, 3).map((notification) => (
+                  <div key={notification.id} className="rounded-lg border border-indigo-300/20 bg-slate-950/60 p-2">
+                    <p className="text-xs text-slate-100">{notification.message}</p>
+                    <p className="mt-1 text-[11px] text-slate-400">{notification.timestamp}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {isMobileProfileOpen ? (
+            <div className="mt-4 rounded-xl border border-indigo-300/20 bg-slate-900/60 p-3">
+              <p className="text-sm font-semibold text-slate-100">{savedSettings.account.name}</p>
+              <p className="mb-2 text-xs text-slate-400">Credit Operations Lead</p>
+              <div className="flex flex-col">
+                <Link href="/result" className="rounded-lg px-2 py-1.5 text-sm text-slate-200 hover:bg-indigo-500/15">
+                  My Profile
+                </Link>
+                <Link href="/landing-page" className="rounded-lg px-2 py-1.5 text-sm text-slate-200 hover:bg-indigo-500/15">
+                  Team / Organization
+                </Link>
+                <Link href="/loan-marketplace" className="rounded-lg px-2 py-1.5 text-sm text-slate-200 hover:bg-indigo-500/15">
+                  Billing / Subscription
+                </Link>
+                <Link href="/landing-page" className="rounded-lg px-2 py-1.5 text-sm text-slate-200 hover:bg-indigo-500/15">
+                  Help / Documentation
+                </Link>
+                <button className="rounded-lg px-2 py-1.5 text-left text-sm text-rose-300 hover:bg-rose-500/15">Logout</button>
+              </div>
+            </div>
+          ) : null}
         </div>
-        {isMobileNotificationsOpen ? (
-          <div className="mt-4 rounded-xl border border-indigo-300/20 bg-slate-900/60 p-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-100">Notifications</p>
-              <button className="text-xs text-indigo-200" onClick={markAllNotificationsRead}>
-                Mark all as read
-              </button>
-            </div>
-            <div className="mt-3 space-y-2">
-              {notifications.length === 0 ? <p className="text-xs text-slate-400">No notifications to show.</p> : null}
-              {notifications.slice(0, 3).map((notification) => (
-                <div key={notification.id} className="rounded-lg border border-indigo-300/20 bg-slate-950/60 p-2">
-                  <p className="text-xs text-slate-100">{notification.message}</p>
-                  <p className="text-[11px] text-slate-400 mt-1">{notification.timestamp}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {isMobileProfileOpen ? (
-          <div className="mt-4 rounded-xl border border-indigo-300/20 bg-slate-900/60 p-3">
-            <p className="text-sm font-semibold text-slate-100">{savedSettings.account.name}</p>
-            <p className="text-xs text-slate-400 mb-2">Credit Operations Lead</p>
-            <div className="flex flex-col">
-              <Link href="/result" className="rounded-lg px-2 py-1.5 text-sm text-slate-200 hover:bg-indigo-500/15">My Profile</Link>
-              <Link href="/landing-page" className="rounded-lg px-2 py-1.5 text-sm text-slate-200 hover:bg-indigo-500/15">Team / Organization</Link>
-              <Link href="/loan-marketplace" className="rounded-lg px-2 py-1.5 text-sm text-slate-200 hover:bg-indigo-500/15">Billing / Subscription</Link>
-              <Link href="/landing-page" className="rounded-lg px-2 py-1.5 text-sm text-slate-200 hover:bg-indigo-500/15">Help / Documentation</Link>
-              <button className="text-left rounded-lg px-2 py-1.5 text-sm text-rose-300 hover:bg-rose-500/15">Logout</button>
-            </div>
-          </div>
-        ) : null}
       </aside>
+
       {isSettingsOpen ? (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={closeSettings} />
-          <div className="relative w-full max-w-[860px] max-h-[88vh] overflow-auto rounded-3xl border border-indigo-300/25 bg-slate-950/95 p-5 md:p-6 shadow-[0_30px_70px_rgba(0,0,0,0.6)]">
-            <div className="flex items-center justify-between pb-4 border-b border-indigo-200/15">
+
+          <div className="relative max-h-[88vh] w-full max-w-[860px] overflow-auto rounded-3xl border border-indigo-300/25 bg-slate-950/95 p-5 shadow-[0_30px_70px_rgba(0,0,0,0.6)] md:p-6">
+            <div className="flex items-center justify-between border-b border-indigo-200/15 pb-4">
               <h2 className="text-lg font-semibold text-white">Settings</h2>
               <button className="text-slate-300 hover:text-white" aria-label="Close settings" onClick={closeSettings}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -719,9 +724,10 @@ export function AppHeader() {
                 </svg>
               </button>
             </div>
-            <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+
+            <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
               <section className="rounded-2xl border border-indigo-300/20 bg-slate-900/55 p-4">
-                <h3 className="text-sm font-semibold text-indigo-100 mb-3">1. Account</h3>
+                <h3 className="mb-3 text-sm font-semibold text-indigo-100">1. Account</h3>
                 <div className="space-y-3">
                   <label className="form-label">
                     Name
@@ -736,6 +742,7 @@ export function AppHeader() {
                       }
                     />
                   </label>
+
                   <label className="form-label">
                     Email
                     <input
@@ -749,6 +756,7 @@ export function AppHeader() {
                       }
                     />
                   </label>
+
                   <label className="form-label">
                     Change password
                     <input
@@ -764,6 +772,7 @@ export function AppHeader() {
                       placeholder="Enter new password"
                     />
                   </label>
+
                   <label className="flex items-center justify-between text-sm text-slate-200">
                     2FA
                     <button
@@ -787,8 +796,9 @@ export function AppHeader() {
                   </label>
                 </div>
               </section>
+
               <section className="rounded-2xl border border-indigo-300/20 bg-slate-900/55 p-4">
-                <h3 className="text-sm font-semibold text-indigo-100 mb-3">2. Platform</h3>
+                <h3 className="mb-3 text-sm font-semibold text-indigo-100">2. Platform</h3>
                 <div className="space-y-3">
                   <label className="form-label">
                     Default scoring model
@@ -810,6 +820,7 @@ export function AppHeader() {
                       <option>Conservative Rulebook</option>
                     </select>
                   </label>
+
                   <label className="form-label">
                     Risk threshold ({settingsDraft.platform.riskThreshold})
                     <input
@@ -838,6 +849,7 @@ export function AppHeader() {
                       }
                     />
                   </label>
+
                   <div className="grid grid-cols-2 gap-3">
                     <label className="form-label">
                       Region
@@ -859,6 +871,7 @@ export function AppHeader() {
                         <option>Middle East</option>
                       </select>
                     </label>
+
                     <label className="form-label">
                       Currency
                       <select
@@ -882,15 +895,19 @@ export function AppHeader() {
                   </div>
                 </div>
               </section>
+
               <section className="rounded-2xl border border-indigo-300/20 bg-slate-900/55 p-4">
-                <h3 className="text-sm font-semibold text-indigo-100 mb-3">3. Notifications</h3>
+                <h3 className="mb-3 text-sm font-semibold text-indigo-100">3. Notifications</h3>
                 <div className="space-y-2">
                   {[
                     { key: "loanUpdates", label: "Loan updates" },
                     { key: "systemAlerts", label: "System alerts" },
                     { key: "emailNotifications", label: "Email notifications" }
                   ].map((item) => (
-                    <label key={item.key} className="flex items-center justify-between rounded-xl border border-indigo-300/20 px-3 py-2 text-sm text-slate-200">
+                    <label
+                      key={item.key}
+                      className="flex items-center justify-between rounded-xl border border-indigo-300/20 px-3 py-2 text-sm text-slate-200"
+                    >
                       {item.label}
                       <input
                         type="checkbox"
@@ -909,8 +926,9 @@ export function AppHeader() {
                   ))}
                 </div>
               </section>
+
               <section className="rounded-2xl border border-indigo-300/20 bg-slate-900/55 p-4">
-                <h3 className="text-sm font-semibold text-indigo-100 mb-3">4. Integrations</h3>
+                <h3 className="mb-3 text-sm font-semibold text-indigo-100">4. Integrations</h3>
                 <div className="space-y-3">
                   <label className="form-label">
                     API key
@@ -921,16 +939,13 @@ export function AppHeader() {
                       </button>
                     </div>
                   </label>
+
                   <div className="space-y-2">
                     {settingsDraft.integrations.services.map((service) => (
                       <div key={service.id} className="flex items-center justify-between rounded-xl border border-indigo-300/20 px-3 py-2 text-sm">
                         <span className="text-slate-200">{service.label}</span>
                         <span className="inline-flex items-center gap-2 text-xs text-slate-300">
-                          <span
-                            className={`h-2 w-2 rounded-full ${
-                              service.status === "Connected" ? "bg-emerald-400" : "bg-amber-400"
-                            }`}
-                          />
+                          <span className={`h-2 w-2 rounded-full ${service.status === "Connected" ? "bg-emerald-400" : "bg-amber-400"}`} />
                           {service.status}
                         </span>
                       </div>
@@ -938,13 +953,16 @@ export function AppHeader() {
                   </div>
                 </div>
               </section>
+
               <section className="rounded-2xl border border-indigo-300/20 bg-slate-900/55 p-4 md:col-span-2">
-                <h3 className="text-sm font-semibold text-indigo-100 mb-3">5. Appearance</h3>
+                <h3 className="mb-3 text-sm font-semibold text-indigo-100">5. Appearance</h3>
                 <div className="flex items-center justify-between rounded-xl border border-indigo-300/20 px-3 py-2 text-sm text-slate-200">
                   Theme
                   <div className="flex items-center gap-2">
                     <button
-                      className={`rounded-lg px-3 py-1.5 text-xs ${settingsDraft.appearance.theme === "dark" ? "bg-indigo-500/30 text-indigo-100" : "bg-slate-800 text-slate-300"}`}
+                      className={`rounded-lg px-3 py-1.5 text-xs ${
+                        settingsDraft.appearance.theme === "dark" ? "bg-indigo-500/30 text-indigo-100" : "bg-slate-800 text-slate-300"
+                      }`}
                       onClick={() =>
                         setSettingsDraft((previous) => ({
                           ...previous,
@@ -955,7 +973,9 @@ export function AppHeader() {
                       Dark
                     </button>
                     <button
-                      className={`rounded-lg px-3 py-1.5 text-xs ${settingsDraft.appearance.theme === "light" ? "bg-indigo-500/30 text-indigo-100" : "bg-slate-800 text-slate-300"}`}
+                      className={`rounded-lg px-3 py-1.5 text-xs ${
+                        settingsDraft.appearance.theme === "light" ? "bg-indigo-500/30 text-indigo-100" : "bg-slate-800 text-slate-300"
+                      }`}
                       onClick={() =>
                         setSettingsDraft((previous) => ({
                           ...previous,
@@ -969,6 +989,7 @@ export function AppHeader() {
                 </div>
               </section>
             </div>
+
             <div className="mt-5 flex items-center justify-end gap-3 border-t border-indigo-200/15 pt-4">
               <button className="btn-ghost rounded-xl px-4 py-2 text-sm" onClick={closeSettings}>
                 Cancel
@@ -981,12 +1002,5 @@ export function AppHeader() {
         </div>
       ) : null}
     </>
-              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-          </div>
-        </div>
-      </div>
-    </header>
   );
 }
