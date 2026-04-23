@@ -95,9 +95,12 @@ class AgentBreakdown(BaseModel):
 
 class ScoreResponse(BaseModel):
     final_score: int = Field(ge=300, le=900)
+    risk_level: FraudRiskLevel
     confidence: ConfidenceLevel
     explanation: str
     agent_breakdown: AgentBreakdown
+    component_weights: dict[str, float] = Field(default_factory=dict)
+    component_contributions: dict[str, float] = Field(default_factory=dict)
     rbi_flags: list[str] = Field(default_factory=list)
     positive_factors: list[str] = Field(default_factory=list)
     risk_factors: list[str] = Field(default_factory=list)
@@ -136,6 +139,11 @@ class WhatIfRequest(BaseModel):
     income_shift: int = Field(ge=0, le=20)
     compliance_boost: int = Field(ge=0, le=20)
     debt_reduction: int = Field(ge=0, le=20)
+    base_income_score: int | None = Field(default=None, ge=0, le=100)
+    base_repayment_score: int | None = Field(default=None, ge=0, le=100)
+    base_lifestyle_score: int | None = Field(default=None, ge=0, le=100)
+    compliance_status: ComplianceStatus | None = None
+    rbi_flags_count: int = Field(default=0, ge=0, le=50)
 
 
 class WhatIfRecommendation(BaseModel):
@@ -148,8 +156,11 @@ class WhatIfResponse(BaseModel):
     base_score: int = Field(ge=300, le=900)
     projected_score: int = Field(ge=300, le=900)
     score_delta: int
+    projected_risk_level: FraudRiskLevel
     confidence: ConfidenceLevel
     explanation: str
+    projected_breakdown: AgentBreakdown
+    component_impacts: dict[str, int]
     recommendations: list[WhatIfRecommendation]
     processing_time_ms: int = Field(ge=0)
     disclaimer: str
@@ -201,3 +212,13 @@ class RiskPredictionResponse(BaseModel):
     predicted_risk: Literal["low", "medium", "high"]
     class_probabilities: dict[str, float]
     model_trained_at_utc: str
+
+
+SignalType = Literal["upi", "gst", "rent", "utilities", "employment"]
+
+
+class StatementDerivationResponse(BaseModel):
+    signal_type: SignalType
+    derived_fields: dict[str, float | int | str | bool]
+    summary: str
+    rows_processed: int = Field(ge=0)

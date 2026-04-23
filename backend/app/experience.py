@@ -4,7 +4,9 @@ import time
 from secrets import token_urlsafe
 from uuid import uuid4
 
+from .resolver import COMPONENT_WEIGHTS
 from .schemas import (
+    AgentBreakdown,
     AuthResponse,
     ConfidenceLevel,
     LoginRequest,
@@ -70,49 +72,180 @@ def _clamp_score(value: float) -> int:
     return max(300, min(900, int(round(value))))
 
 
-def _confidence_from_delta(delta: int) -> ConfidenceLevel:
-    magnitude = abs(delta)
-    if magnitude <= 24:
+def _clamp_component(value: float) -> int:
+    return max(0, min(100, int(round(value))))
+
+
+def _internal_from_score(score: int) -> float:
+    return max(0.0, min(100.0, (score - 300) / 6))
+
+
+def _score_from_internal(value: float) -> int:
+    return _clamp_score(300 + (max(0.0, min(100.0, value)) * 6))
+
+
+def _component_internal(income: int, repayment: int, lifestyle: int) -> float:
+    return (
+        (income * COMPONENT_WEIGHTS["income"])
+        + (repayment * COMPONENT_WEIGHTS["repayment"])
+        + (lifestyle * COMPONENT_WEIGHTS["lifestyle"])
+    )
+
+
+def _derive_base_breakdown(payload: WhatIfRequest) -> tuple[int, int, int]:
+    provided = (
+        payload.base_income_score is not None
+        and payload.base_repayment_score is not None
+        and payload.base_lifestyle_score is not None
+    )
+    if provided:
+        return (
+            _clamp_component(payload.base_income_score or 0),
+            _clamp_component(payload.base_repayment_score or 0),
+            _clamp_component(payload.base_lifestyle_score or 0),
+        )
+
+    internal_score = _internal_from_score(payload.base_score)
+    baseline_component = _clamp_component(internal_score)
+    return (baseline_component, baseline_component, baseline_component)
+
+
+def _scenario_confidence(
+    payload: WhatIfRequest,
+    base_breakdown_was_derived: bool,
+    baseline_penalty: float,
+) -> ConfidenceLevel:
+    confidence_value = 0.84 if not base_breakdown_was_derived else 0.7
+    scenario_magnitude = payload.income_shift + payload.compliance_boost + payload.debt_reduction
+    confidence_value -= min(0.22, scenario_magnitude / 90)
+    confidence_value -= min(0.12, baseline_penalty / 80)
+
+    if confidence_value >= 0.76:
         return "high"
-    if magnitude <= 55:
+    if confidence_value >= 0.5:
         return "medium"
     return "low"
 
 
+def _recommendation_impact(value: float) -> str:
+    if value >= 10:
+        return "high"
+    if value >= 5:
+        return "medium"
+    return "low"
+
+
+def _base_compliance_penalty(payload: WhatIfRequest) -> float:
+    status_penalty = 0.0
+    if payload.compliance_status == "review":
+        status_penalty = 6.0
+    elif payload.compliance_status == "fail":
+        status_penalty = 12.0
+    flag_penalty = min(18.0, payload.rbi_flags_count * 1.5)
+    return min(30.0, status_penalty + flag_penalty)
+
+
+def _shift_gain(shift: int, base_component: int, max_gain: float) -> float:
+    if shift <= 0:
+        return 0.0
+    normalized_shift = min(1.0, shift / 20)
+    headroom = max(0.0, min(1.0, (100 - base_component) / 100))
+    return max_gain * normalized_shift * (0.3 + (0.7 * headroom))
+
+
+def _risk_level_from_score(score: int) -> str:
+    if score >= 760:
+        return "low"
+    if score >= 620:
+        return "medium"
+    return "high"
+
+
 def run_what_if_simulation(payload: WhatIfRequest) -> WhatIfResponse:
     started = time.perf_counter()
-
-    modifier = (
-        payload.income_shift * 2.1
-        + payload.compliance_boost * 2.7
-        + payload.debt_reduction * 1.8
+    base_income, base_repayment, base_lifestyle = _derive_base_breakdown(payload)
+    base_breakdown_was_derived = (
+        payload.base_income_score is None
+        or payload.base_repayment_score is None
+        or payload.base_lifestyle_score is None
     )
-    projected_score = _clamp_score(payload.base_score + modifier)
+
+    income_gain = _shift_gain(payload.income_shift, base_income, max_gain=18.0)
+    compliance_repayment_gain = _shift_gain(payload.compliance_boost, base_repayment, max_gain=12.0)
+    compliance_lifestyle_gain = _shift_gain(payload.compliance_boost, base_lifestyle, max_gain=8.0)
+    debt_repayment_gain = _shift_gain(payload.debt_reduction, base_repayment, max_gain=20.0)
+    debt_income_gain = _shift_gain(payload.debt_reduction, base_income, max_gain=4.0)
+    debt_lifestyle_gain = _shift_gain(payload.debt_reduction, base_lifestyle, max_gain=3.0)
+
+    projected_income = _clamp_component(base_income + income_gain + debt_income_gain)
+    projected_repayment = _clamp_component(base_repayment + compliance_repayment_gain + debt_repayment_gain)
+    projected_lifestyle = _clamp_component(base_lifestyle + compliance_lifestyle_gain + debt_lifestyle_gain)
+
+    base_penalty = _base_compliance_penalty(payload)
+    penalty_relief = min(base_penalty, (payload.compliance_boost / 20) * min(12.0, base_penalty))
+    projected_penalty = max(0.0, base_penalty - penalty_relief)
+
+    base_model_internal = _component_internal(base_income, base_repayment, base_lifestyle) - base_penalty
+    projected_model_internal = (
+        _component_internal(projected_income, projected_repayment, projected_lifestyle) - projected_penalty
+    )
+    alignment = _internal_from_score(payload.base_score) - base_model_internal
+    projected_internal = projected_model_internal + alignment
+    projected_score = _score_from_internal(projected_internal)
+
+    if payload.income_shift == 0 and payload.compliance_boost == 0 and payload.debt_reduction == 0:
+        projected_score = payload.base_score
+    else:
+        projected_score = max(payload.base_score, projected_score)
+
     delta = projected_score - payload.base_score
-    confidence = _confidence_from_delta(delta)
+    confidence = _scenario_confidence(payload, base_breakdown_was_derived, baseline_penalty=base_penalty)
+    base_risk = _risk_level_from_score(payload.base_score)
+    projected_risk = _risk_level_from_score(projected_score)
+
+    component_impacts = {
+        "income": projected_income - base_income,
+        "repayment": projected_repayment - base_repayment,
+        "lifestyle": projected_lifestyle - base_lifestyle,
+    }
+    if projected_penalty <= 2.0 and payload.compliance_status in {"pass", None}:
+        projected_compliance = "pass"
+    elif projected_penalty <= 6.0 and payload.compliance_boost >= 12:
+        projected_compliance = "pass"
+    elif payload.compliance_status == "fail" and projected_penalty > 8.0:
+        projected_compliance = "fail"
+    else:
+        projected_compliance = "review"
 
     recommendations = [
         WhatIfRecommendation(
             title="Income stability uplift",
-            impact="high" if payload.income_shift >= 12 else "medium",
-            note="Maintain recurring inflows and proof-backed income records for 90+ days.",
+            impact=_recommendation_impact(income_gain + debt_income_gain),
+            note=(
+                "Increase recurring verified inflows and reduce month-to-month volatility to improve the income component."
+            ),
         ),
         WhatIfRecommendation(
             title="Compliance regularity",
-            impact="high" if payload.compliance_boost >= 12 else "medium",
-            note="Sustain on-time GST/utility behavior to improve lender trust calibration.",
+            impact=_recommendation_impact(compliance_repayment_gain + compliance_lifestyle_gain),
+            note=(
+                "Clearing compliance flags provides direct score uplift by lowering compliance penalty drag."
+            ),
         ),
         WhatIfRecommendation(
             title="Debt stress reduction",
-            impact="high" if payload.debt_reduction >= 12 else "low",
-            note="Lower utilization and avoid clustered inquiries during underwriting windows.",
+            impact=_recommendation_impact(debt_repayment_gain),
+            note=(
+                "Lower utilization and smoother repayment cycles improve repayment resilience and score stability."
+            ),
         ),
     ]
 
     explanation = (
         f"Starting from {payload.base_score}, simulated adjustments produced a projected score of "
-        f"{projected_score} ({delta:+d}). The strongest effect came from compliance and income "
-        "stability movements, while debt stress reduction provided a supporting lift."
+        f"{projected_score} ({delta:+d}). Risk level moved from {base_risk} to {projected_risk}. "
+        f"Component impact: income {component_impacts['income']:+d}, repayment {component_impacts['repayment']:+d}, "
+        f"lifestyle {component_impacts['lifestyle']:+d}. Compliance penalty moved from {base_penalty:.1f} to {projected_penalty:.1f}."
     )
 
     processing_time_ms = int((time.perf_counter() - started) * 1000)
@@ -120,8 +253,16 @@ def run_what_if_simulation(payload: WhatIfRequest) -> WhatIfResponse:
         base_score=payload.base_score,
         projected_score=projected_score,
         score_delta=delta,
+        projected_risk_level=projected_risk,
         confidence=confidence,
         explanation=explanation,
+        projected_breakdown=AgentBreakdown(
+            income=projected_income,
+            repayment=projected_repayment,
+            lifestyle=projected_lifestyle,
+            compliance=projected_compliance,
+        ),
+        component_impacts=component_impacts,
         recommendations=recommendations,
         processing_time_ms=processing_time_ms,
         disclaimer=WHAT_IF_DISCLAIMER,

@@ -30,7 +30,7 @@ interface WhatIfResponse {
 }
 
 export default function WhatIfPage() {
-  const [baseScore, setBaseScore] = useState(714);
+  const [baseScore, setBaseScore] = useState(670);
   const [incomeShift, setIncomeShift] = useState(12);
   const [complianceBoost, setComplianceBoost] = useState(8);
   const [debtReduction, setDebtReduction] = useState(9);
