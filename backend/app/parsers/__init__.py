@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .audit import StatementAuditResult, audit_statement_transactions
 from .detector import ParseDetectionResult, parse_statement_transactions
 from .signals import DerivedSignalResult, derive_signals
 
@@ -16,6 +17,7 @@ class StatementParseResult:
     upi_inactive: bool
     parsed_signals: dict[str, int | float]
     parser_warnings: list[str]
+    data_quality_audit: StatementAuditResult
 
 
 def parse_statement_file(filename: str, content: bytes, borrower_name: str) -> StatementParseResult:
@@ -34,6 +36,10 @@ def parse_statement_file(filename: str, content: bytes, borrower_name: str) -> S
         detection.transactions,
         borrower_name=borrower_name,
     )
+    audit: StatementAuditResult = audit_statement_transactions(
+        detection.transactions,
+        borrower_name=borrower_name,
+    )
     warnings = [*detection.warnings, *derived.warnings]
 
     return StatementParseResult(
@@ -45,6 +51,7 @@ def parse_statement_file(filename: str, content: bytes, borrower_name: str) -> S
         upi_inactive=derived.upi_inactive,
         parsed_signals=derived.signals,
         parser_warnings=warnings,
+        data_quality_audit=audit,
     )
 
 

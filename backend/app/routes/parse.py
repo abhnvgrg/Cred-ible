@@ -12,11 +12,15 @@ from ..parsers import parse_statement_file
 from ..parsers.base import ParsedTransaction, ParserError
 from ..parsers.signals import derive_signals
 from ..schemas.parse import (
+    DataQualityAuditResponse,
+    IncomeAuditResponse,
+    LifestyleAuditResponse,
     ParsePersonaSet,
     ParsePersonasResponse,
     ParseRequest,
     ParseResponse,
     ParsedSignals,
+    RepaymentAuditResponse,
 )
 
 
@@ -264,6 +268,10 @@ def _build_persona_response(profile: PersonaProfile) -> ParsePersonaSet:
         _build_persona_transactions(profile),
         borrower_name=profile.borrower_name,
     )
+    transactions = _build_persona_transactions(profile)
+    from ..parsers.audit import audit_statement_transactions
+
+    audit = audit_statement_transactions(transactions, borrower_name=profile.borrower_name)
     return ParsePersonaSet(
         borrower_name=profile.borrower_name,
         employment_type=profile.employment_type,
@@ -278,6 +286,23 @@ def _build_persona_response(profile: PersonaProfile) -> ParsePersonaSet:
             income_undetectable=derived.income_undetectable,
             upi_inactive=derived.upi_inactive,
             parser_warnings=derived.warnings,
+            data_quality_audit=DataQualityAuditResponse(
+                score=audit.score,
+                flags=audit.flags,
+                missing_months=audit.missing_months,
+                parallel_balance_tracks=audit.parallel_balance_tracks,
+                balance_track_ranges=audit.balance_track_ranges,
+                anomalous_income_months=audit.anomalous_income_months,
+                raw_monthly_income_avg=audit.raw_monthly_income_avg,
+                corrected_monthly_income_avg=audit.corrected_monthly_income_avg,
+                rent_payments_found=audit.rent_payments_found,
+                utility_consistency=audit.utility_consistency,
+                utility_providers=audit.utility_providers,
+                months_without_utility_payments=audit.months_without_utility_payments,
+                income=IncomeAuditResponse(**audit.income.__dict__),
+                repayment=RepaymentAuditResponse(**audit.repayment.__dict__),
+                lifestyle=LifestyleAuditResponse(**audit.lifestyle.__dict__),
+            ),
         ),
     )
 
@@ -362,6 +387,23 @@ async def parse_statement_endpoint(
         income_undetectable=parsed.income_undetectable,
         upi_inactive=parsed.upi_inactive,
         parser_warnings=parsed.parser_warnings,
+        data_quality_audit=DataQualityAuditResponse(
+            score=parsed.data_quality_audit.score,
+            flags=parsed.data_quality_audit.flags,
+            missing_months=parsed.data_quality_audit.missing_months,
+            parallel_balance_tracks=parsed.data_quality_audit.parallel_balance_tracks,
+            balance_track_ranges=parsed.data_quality_audit.balance_track_ranges,
+            anomalous_income_months=parsed.data_quality_audit.anomalous_income_months,
+            raw_monthly_income_avg=parsed.data_quality_audit.raw_monthly_income_avg,
+            corrected_monthly_income_avg=parsed.data_quality_audit.corrected_monthly_income_avg,
+            rent_payments_found=parsed.data_quality_audit.rent_payments_found,
+            utility_consistency=parsed.data_quality_audit.utility_consistency,
+            utility_providers=parsed.data_quality_audit.utility_providers,
+            months_without_utility_payments=parsed.data_quality_audit.months_without_utility_payments,
+            income=IncomeAuditResponse(**parsed.data_quality_audit.income.__dict__),
+            repayment=RepaymentAuditResponse(**parsed.data_quality_audit.repayment.__dict__),
+            lifestyle=LifestyleAuditResponse(**parsed.data_quality_audit.lifestyle.__dict__),
+        ),
     )
 
 

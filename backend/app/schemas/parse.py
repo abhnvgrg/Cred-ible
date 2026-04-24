@@ -86,6 +86,54 @@ class ParseRequest(BaseModel):
     loan_amount_requested: int = Field(ge=0, le=50_000_000)
 
 
+class IncomeAuditResponse(BaseModel):
+    income_type: str
+    raw_monthly_avg: float = Field(ge=0)
+    corrected_monthly_avg: float = Field(ge=0)
+    regularity: Literal["HIGH", "MEDIUM", "LOW"]
+    trend: Literal["IMPROVING", "STABLE", "DECLINING"]
+    raw_score: int = Field(ge=0, le=100)
+    corrected_score: int = Field(ge=0, le=100)
+    confidence: Literal["HIGH", "MEDIUM", "LOW"]
+    reasoning: str
+
+
+class RepaymentAuditResponse(BaseModel):
+    bills_found: list[str] = Field(default_factory=list)
+    emis_found: bool
+    rent_found: bool
+    score: int = Field(ge=0, le=100)
+    confidence: Literal["HIGH", "MEDIUM", "LOW"]
+    confirmed_payments_made: int = Field(ge=0)
+    expected_payments: int = Field(ge=0)
+    reasoning: str
+
+
+class LifestyleAuditResponse(BaseModel):
+    essential_ratio: float = Field(ge=0, le=1)
+    multiple_sims: bool
+    score: int = Field(ge=0, le=100)
+    reasoning: str
+
+
+class DataQualityAuditResponse(BaseModel):
+    score: int = Field(ge=0, le=100)
+    flags: list[str] = Field(default_factory=list)
+    missing_months: list[str] = Field(default_factory=list)
+    parallel_balance_tracks: bool = False
+    balance_track_ranges: list[str] = Field(default_factory=list)
+    anomalous_income_months: list[str] = Field(default_factory=list)
+    raw_monthly_income_avg: float = Field(ge=0)
+    corrected_monthly_income_avg: float = Field(ge=0)
+    rent_payments_found: bool = False
+    utility_consistency: Literal["consistent", "inconsistent"]
+    utility_providers: list[str] = Field(default_factory=list)
+    months_without_utility_payments: list[str] = Field(default_factory=list)
+    income: IncomeAuditResponse
+    repayment: RepaymentAuditResponse
+    lifestyle: LifestyleAuditResponse
+
+
 class ParseResponse(BaseModel):
     """Response from POST /parse/statement."""
 
@@ -97,6 +145,7 @@ class ParseResponse(BaseModel):
     income_undetectable: bool = False
     upi_inactive: bool = False
     parser_warnings: list[str] = Field(default_factory=list)
+    data_quality_audit: DataQualityAuditResponse
 
 
 class ParsePersonaSet(BaseModel):

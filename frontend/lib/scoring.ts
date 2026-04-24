@@ -114,8 +114,84 @@ export interface StoredScoreResult {
   fallbackReason?: string | null;
 }
 
+export interface IncomeAuditResult {
+  income_type: string;
+  raw_monthly_avg: number;
+  corrected_monthly_avg: number;
+  regularity: "HIGH" | "MEDIUM" | "LOW";
+  trend: "IMPROVING" | "STABLE" | "DECLINING";
+  raw_score: number;
+  corrected_score: number;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  reasoning: string;
+}
+
+export interface RepaymentAuditResult {
+  bills_found: string[];
+  emis_found: boolean;
+  rent_found: boolean;
+  score: number;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  confirmed_payments_made: number;
+  expected_payments: number;
+  reasoning: string;
+}
+
+export interface LifestyleAuditResult {
+  essential_ratio: number;
+  multiple_sims: boolean;
+  score: number;
+  reasoning: string;
+}
+
+export interface DataQualityAuditResult {
+  score: number;
+  flags: string[];
+  missing_months: string[];
+  parallel_balance_tracks: boolean;
+  balance_track_ranges: string[];
+  anomalous_income_months: string[];
+  raw_monthly_income_avg: number;
+  corrected_monthly_income_avg: number;
+  rent_payments_found: boolean;
+  utility_consistency: "consistent" | "inconsistent";
+  utility_providers: string[];
+  months_without_utility_payments: string[];
+  income: IncomeAuditResult;
+  repayment: RepaymentAuditResult;
+  lifestyle: LifestyleAuditResult;
+}
+
+export interface ParseStatementResult {
+  parsed_signals: {
+    upi_monthly_txn_count: number;
+    upi_avg_txn_value: number;
+    merchant_diversity_score: number;
+    regularity_score: number;
+    monthly_income_inr: number;
+    income_stability_score: number;
+    savings_rate_pct: number;
+    bank_balance_avg_3m: number;
+    debt_to_income_ratio: number;
+    utility_bill_ontime_pct: number;
+    mobile_recharge_freq: number;
+    recharge_consistency_score: number;
+    months_of_history: number;
+    monthly_volume_trend_pct: number;
+  };
+  detected_bank: string;
+  statement_months: number;
+  confidence_score: number;
+  low_history_warning: boolean;
+  income_undetectable: boolean;
+  upi_inactive: boolean;
+  parser_warnings: string[];
+  data_quality_audit: DataQualityAuditResult;
+}
+
 const INTAKE_PAYLOAD_KEY = "cred-ible:intake-payload:v1";
 const SCORE_RESULT_KEY = "cred-ible:score-result:v1";
+const PARSED_STATEMENT_KEY = "cred-ible:parsed-statement:v1";
 
 function setSessionStorageValue(key: string, value: string): boolean {
   if (typeof window === "undefined") return false;
@@ -307,6 +383,106 @@ export function loadScoreResult(): StoredScoreResult | null {
 
 export function clearScoreResult(): void {
   removeSessionStorageValue(SCORE_RESULT_KEY);
+}
+
+function isUpperConfidence(value: unknown): value is "HIGH" | "MEDIUM" | "LOW" {
+  return value === "HIGH" || value === "MEDIUM" || value === "LOW";
+}
+
+function isIncomeAuditResult(value: unknown): value is IncomeAuditResult {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.income_type === "string" &&
+    typeof value.raw_monthly_avg === "number" &&
+    typeof value.corrected_monthly_avg === "number" &&
+    isUpperConfidence(value.regularity) &&
+    (value.trend === "IMPROVING" || value.trend === "STABLE" || value.trend === "DECLINING") &&
+    typeof value.raw_score === "number" &&
+    typeof value.corrected_score === "number" &&
+    isUpperConfidence(value.confidence) &&
+    typeof value.reasoning === "string"
+  );
+}
+
+function isRepaymentAuditResult(value: unknown): value is RepaymentAuditResult {
+  if (!isRecord(value)) return false;
+  return (
+    Array.isArray(value.bills_found) &&
+    value.bills_found.every((item) => typeof item === "string") &&
+    typeof value.emis_found === "boolean" &&
+    typeof value.rent_found === "boolean" &&
+    typeof value.score === "number" &&
+    isUpperConfidence(value.confidence) &&
+    typeof value.confirmed_payments_made === "number" &&
+    typeof value.expected_payments === "number" &&
+    typeof value.reasoning === "string"
+  );
+}
+
+function isLifestyleAuditResult(value: unknown): value is LifestyleAuditResult {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.essential_ratio === "number" &&
+    typeof value.multiple_sims === "boolean" &&
+    typeof value.score === "number" &&
+    typeof value.reasoning === "string"
+  );
+}
+
+function isDataQualityAuditResult(value: unknown): value is DataQualityAuditResult {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.score === "number" &&
+    Array.isArray(value.flags) &&
+    value.flags.every((item) => typeof item === "string") &&
+    Array.isArray(value.missing_months) &&
+    value.missing_months.every((item) => typeof item === "string") &&
+    typeof value.parallel_balance_tracks === "boolean" &&
+    Array.isArray(value.balance_track_ranges) &&
+    value.balance_track_ranges.every((item) => typeof item === "string") &&
+    Array.isArray(value.anomalous_income_months) &&
+    value.anomalous_income_months.every((item) => typeof item === "string") &&
+    typeof value.raw_monthly_income_avg === "number" &&
+    typeof value.corrected_monthly_income_avg === "number" &&
+    typeof value.rent_payments_found === "boolean" &&
+    (value.utility_consistency === "consistent" || value.utility_consistency === "inconsistent") &&
+    Array.isArray(value.utility_providers) &&
+    value.utility_providers.every((item) => typeof item === "string") &&
+    Array.isArray(value.months_without_utility_payments) &&
+    value.months_without_utility_payments.every((item) => typeof item === "string") &&
+    isIncomeAuditResult(value.income) &&
+    isRepaymentAuditResult(value.repayment) &&
+    isLifestyleAuditResult(value.lifestyle)
+  );
+}
+
+function isParseStatementResult(value: unknown): value is ParseStatementResult {
+  if (!isRecord(value)) return false;
+  return (
+    isRecord(value.parsed_signals) &&
+    typeof value.detected_bank === "string" &&
+    typeof value.statement_months === "number" &&
+    typeof value.confidence_score === "number" &&
+    typeof value.low_history_warning === "boolean" &&
+    typeof value.income_undetectable === "boolean" &&
+    typeof value.upi_inactive === "boolean" &&
+    Array.isArray(value.parser_warnings) &&
+    value.parser_warnings.every((item) => typeof item === "string") &&
+    isDataQualityAuditResult(value.data_quality_audit)
+  );
+}
+
+export function saveParsedStatementResult(result: ParseStatementResult): boolean {
+  return setSessionStorageValue(PARSED_STATEMENT_KEY, JSON.stringify(result));
+}
+
+export function loadParsedStatementResult(): ParseStatementResult | null {
+  const parsed = parseJson(getSessionStorageValue(PARSED_STATEMENT_KEY));
+  return isParseStatementResult(parsed) ? parsed : null;
+}
+
+export function clearParsedStatementResult(): void {
+  removeSessionStorageValue(PARSED_STATEMENT_KEY);
 }
 
 export function isComplianceAgentOutput(

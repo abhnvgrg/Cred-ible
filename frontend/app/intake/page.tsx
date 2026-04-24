@@ -5,35 +5,10 @@ import { useRouter } from "next/navigation";
 
 import { ActionLink, RbiNotice, SurfaceCard, SurfaceTile } from "@/components/ui/primitives";
 import { apiFetch } from "@/lib/api";
-import type { BorrowerSignalInput } from "@/lib/scoring";
-import { saveIntakePayload } from "@/lib/scoring";
+import type { BorrowerSignalInput, ParseStatementResult } from "@/lib/scoring";
+import { saveIntakePayload, saveParsedStatementResult } from "@/lib/scoring";
 
 type EmploymentTypeUi = "salaried" | "freelance" | "self_employed" | "gig_worker" | "business_owner";
-type ParseStatementResponse = {
-  parsed_signals: {
-    upi_monthly_txn_count: number;
-    upi_avg_txn_value: number;
-    merchant_diversity_score: number;
-    regularity_score: number;
-    monthly_income_inr: number;
-    income_stability_score: number;
-    savings_rate_pct: number;
-    bank_balance_avg_3m: number;
-    debt_to_income_ratio: number;
-    utility_bill_ontime_pct: number;
-    mobile_recharge_freq: number;
-    recharge_consistency_score: number;
-    months_of_history: number;
-    monthly_volume_trend_pct: number;
-  };
-  detected_bank: string;
-  statement_months: number;
-  confidence_score: number;
-  low_history_warning: boolean;
-  income_undetectable: boolean;
-  upi_inactive: boolean;
-  parser_warnings: string[];
-};
 
 function normalizeEmployment(type: EmploymentTypeUi): BorrowerSignalInput["employment"]["employment_type"] {
   if (type === "salaried") return "salaried";
@@ -46,7 +21,7 @@ function toRatio(percentage: number): number {
 }
 
 function buildBorrowerPayloadFromParsed(
-  parsed: ParseStatementResponse["parsed_signals"],
+  parsed: ParseStatementResult["parsed_signals"],
   borrowerName: string,
   employmentType: EmploymentTypeUi,
   gstApplicable: boolean
@@ -152,7 +127,7 @@ export default function IntakePage() {
       formData.append("gst_applicable", gstApplicable ? "true" : "false");
       formData.append("loan_amount_requested", String(Math.max(0, loanAmountRequested)));
 
-      const parsed = await apiFetch<ParseStatementResponse>("/parse/statement", {
+      const parsed = await apiFetch<ParseStatementResult>("/parse/statement", {
         method: "POST",
         body: formData,
         timeoutMs: 4000
@@ -169,6 +144,7 @@ export default function IntakePage() {
         setError("Unable to cache parsed intake in this browser.");
         return;
       }
+      saveParsedStatementResult(parsed);
       router.push("/ai-processing?source=intake");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Unable to parse statement.");
