@@ -130,7 +130,7 @@ export default function IntakePage() {
       const parsed = await apiFetch<ParseStatementResult>("/parse/statement", {
         method: "POST",
         body: formData,
-        timeoutMs: 4000
+        timeoutMs: 30000
       });
 
       const payload = buildBorrowerPayloadFromParsed(
@@ -147,7 +147,18 @@ export default function IntakePage() {
       saveParsedStatementResult(parsed);
       router.push("/ai-processing?source=intake");
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Unable to parse statement.");
+      const message = submitError instanceof Error ? submitError.message : "Unable to parse statement.";
+      if (message.toLowerCase().includes("image-only")) {
+        setError(
+          "This PDF appears to be scanned/image-only. Please upload a text-based bank PDF export or CSV."
+        );
+      } else if (message.toLowerCase().includes("timed out")) {
+        setError(
+          "PDF parsing took too long. Please retry once, or upload the same statement as CSV for faster processing."
+        );
+      } else {
+        setError(message);
+      }
     } finally {
       setIsSubmitting(false);
     }

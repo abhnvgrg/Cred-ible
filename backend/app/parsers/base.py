@@ -22,6 +22,28 @@ DATE_PATTERNS = (
     "%d-%m-%y",
 )
 
+DATE_AT_START_RE = re.compile(
+    r"^\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4})\b"
+)
+AMOUNT_TOKEN_RE = re.compile(
+    r"\(?-?(?:\d{1,3}(?:,\d{2,3})+|\d+)(?:\.\d{1,2})?\)?\s*(?:dr|cr)?",
+    flags=re.IGNORECASE,
+)
+HEADER_TOKENS = (
+    "date",
+    "narration",
+    "description",
+    "particulars",
+    "debit",
+    "credit",
+    "withdrawal",
+    "deposit",
+    "balance",
+    "amount",
+    "txn",
+    "transaction",
+)
+
 
 @dataclass(frozen=True)
 class ParsedTransaction:
@@ -154,6 +176,99 @@ def _skip_preamble_rows(rows: list[list[str | None]], max_skip: int = 30) -> lis
     return rows
 
 
+def _is_header_line(line: str) -> bool:
+    lowered = line.lower()
+    token_hits = sum(1 for token in HEADER_TOKENS if token in lowered)
+    return token_hits >= 2
+
+
+def _rows_from_pdf_text(raw_text: str) -> list[dict[str, object]]:
+    """
+    Fallback extractor for text-based PDFs where table extraction fails.
+
+    It parses line-oriented transactions that start with a date and usually
+    end with amount columns. This is intentionally permissive to support
+    non-ruled statements where pdfplumber.extract_tables() returns nothing.
+    """
+    parsed_rows: list[dict[str, object]] = []
+    for raw_line in raw_text.splitlines():
+        line = " ".join((raw_line or "").split())
+        if not line:
+            continue
+        if _is_header_line(line):
+            continue
+
+        date_match = DATE_AT_START_RE.match(line)
+        if not date_match:
+            # Treat non-date lines as narration continuations for the
+            # previous transaction if they look like plain text.
+            if parsed_rows and not AMOUNT_TOKEN_RE.search(line):
+                previous = str(parsed_rows[-1].get("narration") or "").strip()
+                parsed_rows[-1]["narration"] = f"{previous} {line}".strip()
+            continue
+
+        date_text = date_match.group(1).strip()
+        remainder = line[date_match.end() :].strip(" -|")
+        if not remainder:
+            continue
+
+        amount_matches = list(AMOUNT_TOKEN_RE.finditer(remainder))
+        if not amount_matches:
+            continue
+
+        tail_amounts = amount_matches[-3:]
+        narration_end = tail_amounts[0].start()
+        narration = remainder[:narration_end].strip(" -|")
+        if not narration:
+            narration = "Transaction"
+
+        amount_texts = [match.group(0).strip() for match in tail_amounts]
+        debit = 0.0
+        credit = 0.0
+        balance: int | None = None
+
+        if len(amount_texts) >= 3:
+            debit = abs(parse_amount(amount_texts[-3]) or 0.0)
+            credit = abs(parse_amount(amount_texts[-2]) or 0.0)
+            balance_amount = parse_amount(amount_texts[-1])
+            balance = int(round(balance_amount)) if balance_amount is not None else None
+        elif len(amount_texts) == 2:
+            amount_value = parse_amount(amount_texts[-2])
+            balance_amount = parse_amount(amount_texts[-1])
+            if amount_value is None:
+                continue
+            amount_lower = amount_texts[-2].lower()
+            if "dr" in amount_lower or amount_value < 0:
+                debit = abs(amount_value)
+            else:
+                credit = abs(amount_value)
+            balance = int(round(balance_amount)) if balance_amount is not None else None
+        else:
+            amount_value = parse_amount(amount_texts[-1])
+            if amount_value is None:
+                continue
+            amount_lower = amount_texts[-1].lower()
+            if "dr" in amount_lower or amount_value < 0:
+                debit = abs(amount_value)
+            else:
+                credit = abs(amount_value)
+
+        if debit == 0 and credit == 0:
+            continue
+
+        parsed_rows.append(
+            {
+                "date": date_text,
+                "narration": narration,
+                "debit": debit,
+                "credit": credit,
+                "balance": balance,
+            }
+        )
+
+    return parsed_rows
+
+
 def read_pdf_tables(content: bytes) -> tuple[pd.DataFrame, str]:
     """
     Extract all tables from every PDF page, concatenate them, and return
@@ -230,10 +345,17 @@ def read_pdf_tables(content: bytes) -> tuple[pd.DataFrame, str]:
                 if not frame.empty:
                     table_frames.append(frame)
 
+    full_text = "\n".join(extracted_text)
     if not table_frames:
+        fallback_rows = _rows_from_pdf_text(full_text)
+        if fallback_rows:
+            fallback_frame = pd.DataFrame(fallback_rows)
+            fallback_frame = fallback_frame.dropna(how="all")
+            if not fallback_frame.empty:
+                return fallback_frame, full_text
         raise ParserError(
             "No tabular transaction data could be extracted from the uploaded PDF statement. "
-            "Ensure the PDF is not scanned/image-only."
+            "The file may be scanned/image-only or use a non-readable layout."
         )
 
     combined = pd.concat(table_frames, ignore_index=True)
@@ -241,7 +363,7 @@ def read_pdf_tables(content: bytes) -> tuple[pd.DataFrame, str]:
     if combined.empty:
         raise ParserError("Extracted PDF tables were empty after cleaning.")
 
-    return combined, "\n".join(extracted_text)
+    return combined, full_text
 
 
 def normalize_frame_columns(frame: pd.DataFrame) -> pd.DataFrame:

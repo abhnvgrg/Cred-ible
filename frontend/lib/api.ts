@@ -63,8 +63,24 @@ export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Prom
       const contentType = response.headers.get("content-type") ?? "";
       if (contentType.includes("application/json")) {
         try {
-          const bodyJson = JSON.parse(bodyText) as { detail?: string; error?: string; message?: string };
-          detail = bodyJson.detail || bodyJson.error || bodyJson.message || detail;
+          const bodyJson = JSON.parse(bodyText) as {
+            detail?:
+              | string
+              | Array<{ msg?: string; loc?: Array<string | number> }>
+              | Record<string, unknown>;
+            error?: string;
+            message?: string;
+          };
+          if (typeof bodyJson.detail === "string") {
+            detail = bodyJson.detail;
+          } else if (Array.isArray(bodyJson.detail)) {
+            const messages = bodyJson.detail
+              .map((item) => (typeof item?.msg === "string" ? item.msg : null))
+              .filter((value): value is string => Boolean(value));
+            detail = messages.join("; ") || detail;
+          } else {
+            detail = bodyJson.error || bodyJson.message || detail;
+          }
         } catch {
           detail = bodyText.trim();
         }
