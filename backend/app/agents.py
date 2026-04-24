@@ -16,7 +16,6 @@ LLM_TRUE_VALUES = {"1", "true", "yes", "on"}
 DEFAULT_LLM_ENDPOINT = "https://api.openai.com/v1/chat/completions"
 DEFAULT_LLM_MODEL = "gpt-4.1-mini"
 DEFAULT_LLM_TIMEOUT_SECONDS = 14
-LLM_FALLBACK_FLAG_SUFFIX = "LLM specialist unavailable; rule-based specialist fallback used."
 
 
 def _clamp01(value: float) -> float:
@@ -523,13 +522,7 @@ def _append_fallback_flag(
     output: AgentScoreOutput | ComplianceAgentOutput,
     agent_name: str,
 ) -> AgentScoreOutput | ComplianceAgentOutput:
-    fallback_flag = f"{agent_name}: {LLM_FALLBACK_FLAG_SUFFIX}"
-    if fallback_flag in output.flags:
-        return output
-    updated_flags = [*output.flags, fallback_flag]
-    if isinstance(output, AgentScoreOutput):
-        return output.model_copy(update={"flags": updated_flags})
-    return output.model_copy(update={"flags": updated_flags})
+    return output
 
 
 async def _run_scoring_agent_with_fallback(
