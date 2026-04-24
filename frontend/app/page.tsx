@@ -116,7 +116,7 @@ export default function HomePage() {
               <p className="text-slate-400 leading-relaxed text-base">
                 Simulate borrower personas securely. Watch as the engine rapidly aggregates
                 alternative data to provide high-probability approval logic within milliseconds,
-                eliminating the "thin-file" penalty forever.
+                eliminating the &quot;thin-file&quot; penalty forever.
               </p>
               <div className="pt-4">
                 <ActionLink href="/ai-processing?persona=raju&source=marketing" variant="ghost" className="border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-200">
