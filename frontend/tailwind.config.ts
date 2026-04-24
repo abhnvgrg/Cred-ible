@@ -9,14 +9,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: "#a3a6ff",
-        secondary: "#c180ff",
-        tertiary: "#6bff8f",
-        surface: "#0a0e19",
-        "surface-low": "#0f131f",
-        "surface-card": "#141927",
-        "surface-raise": "#202535",
-        "outline-variant": "#444855"
+        primary: "#818cf8",
+        secondary: "#a78bfa",
+        tertiary: "#34d399",
+        surface: "#030712",
+        "surface-low": "#0b0f19",
+        "surface-card": "#111827",
+        "surface-raise": "#1f2937",
+        "outline-variant": "#374151"
       }
     }
   },
