@@ -4,7 +4,7 @@
 
 cred-ible is an AI-powered alternative credit scoring engine that translates UPI transaction behaviour, bill repayment discipline, and GST compliance into a fast, explainable lending decision. Built for freelancers, gig workers, street merchants, and micro-entrepreneurs who have real financial activity but no formal credit trail.
 
-🔗 **Live Demo:** [cred-ible.vercel.app](https://cred-ible.vercel.app)
+**Live Demo:** [cred-ible.vercel.app](https://cred-ible.vercel.app)
 
 ---
 
@@ -36,7 +36,7 @@ Applicant Data (UPI + Bureau + Alternate)
 
 ---
 
-## ✨ Key Features
+##  Key Features
 
 | Feature | Description |
 |---|---|
@@ -51,7 +51,7 @@ Applicant Data (UPI + Bureau + Alternate)
 
 ---
 
-## 🛠️ Technology Stack
+##  Technology Stack
 
 ### Frontend
 - **Framework:** [Next.js 14](https://nextjs.org/) — App Router, Server Components
@@ -72,7 +72,7 @@ Applicant Data (UPI + Bureau + Alternate)
 
 ---
 
-## 📁 Repository Structure
+##  Repository Structure
 
 ```
 cred-ible/
@@ -107,7 +107,7 @@ cred-ible/
 
 ---
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 
@@ -175,7 +175,7 @@ The frontend will be live at `http://localhost:3000`.
 
 ---
 
-## 🧠 Model Training
+##  Model Training
 
 cred-ible's ML model predicts credit risk (Low / Medium / High) and outputs a Logic Score from 300–900.
 
@@ -235,7 +235,7 @@ Full interactive docs at `/docs` (Swagger UI) or `/redoc`.
 
 ---
 
-## 🤖 AI Agent Pipeline
+##  AI Agent Pipeline
 
 When an applicant is scored, cred-ible runs a four-agent analysis pipeline:
 
@@ -250,7 +250,7 @@ Each agent contributes a sub-score that feeds into the final Logic Score, and pr
 
 ---
 
-## 📊 Datasets
+##  Datasets
 
 | File | Rows | Description |
 |---|---|---|
@@ -263,7 +263,7 @@ The 50k dataset includes realistic distributions across employment types (Salari
 
 ---
 
-## ⚖️ Disclaimer & RBI Compliance
+##  Disclaimer & RBI Compliance
 
 cred-ible outputs are **decision-support insights** and must be combined with full lender underwriting under prevailing [RBI digital lending guidelines](https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx?prid=54178).
 
@@ -273,7 +273,7 @@ cred-ible outputs are **decision-support insights** and must be combined with fu
 
 ---
 
-## 🤝 Contributing
+##  Contributing
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you'd like to change.
 
