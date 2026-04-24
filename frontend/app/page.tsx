@@ -1,10 +1,10 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { Activity, Play, Settings, Database, Server, Zap, Compass, Calculator, Store, Sparkles } from "lucide-react";
 import { ActionLink, RbiNotice, SurfaceCard, SurfaceTile } from "@/components/ui/primitives";
 
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -12,9 +12,9 @@ const containerVariants = {
   }
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { opacity: 0, y: 30, filter: "blur(8px)" },
-  visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { type: "spring", stiffness: 300, damping: 28 } }
+  visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { type: "spring" as const, stiffness: 300, damping: 28 } }
 };
 
 export default function HomePage() {
@@ -116,7 +116,7 @@ export default function HomePage() {
               <p className="text-slate-400 leading-relaxed text-base">
                 Simulate borrower personas securely. Watch as the engine rapidly aggregates
                 alternative data to provide high-probability approval logic within milliseconds,
-                eliminating the "thin-file" penalty forever.
+                eliminating the &quot;thin-file&quot; penalty forever.
               </p>
               <div className="pt-4">
                 <ActionLink href="/ai-processing?persona=raju&source=marketing" variant="ghost" className="border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-200">
