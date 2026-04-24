@@ -33,7 +33,7 @@ function statusLabel(status: AgentStatus): string {
   if (status === "done") return "Completed";
   if (status === "running") return "Running";
   if (status === "error") return "Failed";
-  return "Queued";
+  return "Pending";
 }
 
 function toDisplayName(rawPersona: string): string {
@@ -74,7 +74,7 @@ function ProcessingPageContent() {
   const backLink = useMemo(() => getBackLink(persona, source), [persona, source]);
 
   const [agentStatuses, setAgentStatuses] = useState<AgentStatus[]>(AGENTS.map(() => "pending"));
-  const [statusMessage, setStatusMessage] = useState("Preparing scoring workflow...");
+  const [statusMessage, setStatusMessage] = useState("Preparing parallel scoring workflow...");
   const [error, setError] = useState<string | null>(null);
   const [missingPayload, setMissingPayload] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -130,27 +130,14 @@ function ProcessingPageContent() {
       let fallbackPayload: BorrowerSignalInput | null = null;
       let borrowerName = "Applicant";
 
-      AGENTS.forEach((agent, index) => {
-        const timer = window.setTimeout(() => {
-          if (cancelled) return;
-          setAgentStatuses((previous) =>
-            previous.map((status, currentIndex) => {
-              if (currentIndex < index && status !== "error") return "done";
-              if (currentIndex === index) return "running";
-              return status;
-            })
-          );
-          setStatusMessage(`${agent.label} is running...`);
-        }, index * 700);
-        timers.push(timer);
-      });
-
       try {
         let response: ScoreResponse;
 
         if (persona) {
           fallbackPayload = loadOfflinePersonaPayload(persona);
           borrowerName = fallbackPayload?.borrower_name ?? toDisplayName(persona);
+          setAgentStatuses(AGENTS.map(() => "running"));
+          setStatusMessage("Running income, repayment, lifestyle, and compliance agents in parallel...");
           response = await apiFetch<ScoreResponse>(`/score/demo/${encodeURIComponent(persona)}`, {
             method: "POST",
             timeoutMs: REQUEST_TIMEOUT_MS
@@ -170,6 +157,8 @@ function ProcessingPageContent() {
 
           fallbackPayload = payload;
           borrowerName = payload.borrower_name;
+          setAgentStatuses(AGENTS.map(() => "running"));
+          setStatusMessage("Running income, repayment, lifestyle, and compliance agents in parallel...");
           response = await apiFetch<ScoreResponse>("/score", {
             method: "POST",
             body: JSON.stringify(payload),
@@ -299,7 +288,7 @@ function ProcessingFallback() {
   return (
     <SurfaceCard>
       <h1 className="headline text-2xl font-bold">Preparing processing workflow...</h1>
-      <p className="mt-2 text-sm muted">Initializing agent orchestration.</p>
+      <p className="mt-2 text-sm muted">Initializing parallel agent orchestration.</p>
     </SurfaceCard>
   );
 }

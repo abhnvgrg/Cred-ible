@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from .agents import run_all_agents
+from .agents import get_orchestration_status, run_all_agents
 from .experience import (
     authenticate_user,
     get_marketplace_offers,
@@ -69,6 +69,11 @@ async def root() -> dict[str, str]:
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/orchestration/status")
+async def orchestration_status() -> dict[str, str | int | bool | list[str]]:
+    return get_orchestration_status()
 
 
 @app.get("/personas")

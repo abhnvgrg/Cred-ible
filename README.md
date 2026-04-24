@@ -13,6 +13,7 @@ cred-ible is an alternative credit scoring engine that translates transaction be
 - **What-If Simulator**: Advanced journey tool for predicting how changes in cash flow or behavior affect credit risk.
 - **Loan Marketplace**: Directly connects evaluated users with customized loan offers based on their generated logic score.
 - **AI Processing Agents**: Live agent-based demo runs (income, repayment, lifestyle, and compliance analysis).
+- **Parallel Specialist Orchestration**: Income, repayment, lifestyle, and compliance specialists are dispatched concurrently, with optional LLM-backed specialist execution.
 - **Offline Fallback Continuity**: Keeps the decision layer active even when various third-party APIs are unresponsive.
 
 ## 🛠️ Technology Stack
@@ -26,7 +27,8 @@ cred-ible is an alternative credit scoring engine that translates transaction be
 **Backend**
 - **Framework**: [FastAPI](https://fastapi.tiangolo.com/)
 - **Language**: Python 3.10+
-- **Machine Learning**: Custom ML risk prediction models (trained via Excel datasets)
+- **Orchestration**: Parallel specialist orchestration engine (rule-based by default, LLM-enabled via environment variables)
+- **Machine Learning**: Custom ML risk prediction models (trained via Excel datasets) for `/model/*` endpoints
 - **Server**: Uvicorn
 
 ## 🚀 Getting Started
@@ -87,6 +89,22 @@ To build or refresh the model locally based on demo data (found in the root dire
 ```powershell
 python train_model.py --dataset ..\credit_demo_dataset.xlsx
 ```
+
+## 🤖 Parallel LLM Orchestration (Optional)
+
+By default, scoring uses parallel rule-based specialists. To enable LLM-dispatched parallel specialists for the primary `/score` flow, configure:
+
+```powershell
+$env:CREDIBLE_LLM_ORCHESTRATION="true"
+$env:CREDIBLE_LLM_API_KEY="your_api_key"
+$env:CREDIBLE_LLM_MODEL="gpt-4.1-mini"
+$env:CREDIBLE_LLM_ENDPOINT="https://api.openai.com/v1/chat/completions"
+$env:CREDIBLE_LLM_TIMEOUT_SECONDS="14"
+```
+
+You can verify active orchestration mode at:
+
+- `GET /orchestration/status`
 
 ## 📁 Repository Structure
 

@@ -1,10 +1,22 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import os
+import urllib.error
+import urllib.request
+from typing import Any
+
+from pydantic import ValidationError
 
 from .schemas import AgentScoreOutput, BorrowerSignalInput, ComplianceAgentOutput, GSTSignal
 
 PROHIBITED_SIGNALS = {"religion", "caste", "gender", "political_affiliation"}
+LLM_TRUE_VALUES = {"1", "true", "yes", "on"}
+DEFAULT_LLM_ENDPOINT = "https://api.openai.com/v1/chat/completions"
+DEFAULT_LLM_MODEL = "gpt-4.1-mini"
+DEFAULT_LLM_TIMEOUT_SECONDS = 14
+LLM_FALLBACK_FLAG_SUFFIX = "LLM specialist unavailable; rule-based specialist fallback used."
 
 
 def _clamp01(value: float) -> float:
@@ -285,12 +297,343 @@ async def compliance_and_fraud_agent(payload: BorrowerSignalInput) -> Compliance
     )
 
 
+def _env_enabled(name: str) -> bool:
+    raw_value = os.getenv(name, "")
+    return raw_value.strip().lower() in LLM_TRUE_VALUES
+
+
+def _llm_runtime_config() -> dict[str, str | int | bool]:
+    llm_requested = _env_enabled("CREDIBLE_LLM_ORCHESTRATION")
+    api_key = os.getenv("CREDIBLE_LLM_API_KEY", "").strip()
+    api_key_present = len(api_key) > 0
+    model = os.getenv("CREDIBLE_LLM_MODEL", DEFAULT_LLM_MODEL).strip() or DEFAULT_LLM_MODEL
+    endpoint = os.getenv("CREDIBLE_LLM_ENDPOINT", DEFAULT_LLM_ENDPOINT).strip() or DEFAULT_LLM_ENDPOINT
+    timeout_raw = os.getenv("CREDIBLE_LLM_TIMEOUT_SECONDS", str(DEFAULT_LLM_TIMEOUT_SECONDS)).strip()
+    try:
+        timeout_seconds = int(timeout_raw)
+    except ValueError:
+        timeout_seconds = DEFAULT_LLM_TIMEOUT_SECONDS
+    timeout_seconds = max(5, min(90, timeout_seconds))
+
+    llm_enabled = llm_requested and api_key_present
+    mode = "llm_parallel" if llm_enabled else "rules_parallel"
+
+    return {
+        "mode": mode,
+        "llm_requested": llm_requested,
+        "llm_enabled": llm_enabled,
+        "api_key_present": api_key_present,
+        "model": model,
+        "endpoint": endpoint,
+        "timeout_seconds": timeout_seconds,
+    }
+
+
+def get_orchestration_status() -> dict[str, str | int | bool | list[str]]:
+    config = _llm_runtime_config()
+    return {
+        "mode": str(config["mode"]),
+        "llm_requested": bool(config["llm_requested"]),
+        "llm_enabled": bool(config["llm_enabled"]),
+        "api_key_present": bool(config["api_key_present"]),
+        "model": str(config["model"]),
+        "endpoint": str(config["endpoint"]),
+        "timeout_seconds": int(config["timeout_seconds"]),
+        "parallel_agents": ["income", "repayment", "lifestyle", "compliance"],
+    }
+
+
+def _strip_json_fences(content: str) -> str:
+    trimmed = content.strip()
+    if not trimmed.startswith("```"):
+        return trimmed
+    lines = [line for line in trimmed.splitlines() if line.strip() != "```"]
+    if lines and lines[0].strip().lower() in {"json", "```json"}:
+        lines = lines[1:]
+    if lines and lines[-1].strip() == "```":
+        lines = lines[:-1]
+    return "\n".join(lines).strip()
+
+
+def _chat_completion_json(
+    *,
+    endpoint: str,
+    api_key: str,
+    model: str,
+    timeout_seconds: int,
+    system_prompt: str,
+    user_prompt: str,
+) -> dict[str, Any]:
+    request_payload = {
+        "model": model,
+        "temperature": 0.1,
+        "response_format": {"type": "json_object"},
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+    }
+    encoded_body = json.dumps(request_payload).encode("utf-8")
+    request = urllib.request.Request(
+        endpoint,
+        data=encoded_body,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+        raw_response = response.read().decode("utf-8")
+    response_body = json.loads(raw_response)
+    choices = response_body.get("choices")
+    if not isinstance(choices, list) or not choices:
+        raise ValueError("LLM response did not include choices.")
+
+    first_choice = choices[0]
+    if not isinstance(first_choice, dict):
+        raise ValueError("LLM response choice was not a dictionary.")
+    message = first_choice.get("message")
+    if not isinstance(message, dict):
+        raise ValueError("LLM response did not include a message object.")
+    content = message.get("content")
+
+    if isinstance(content, list):
+        text_parts: list[str] = []
+        for item in content:
+            if isinstance(item, dict):
+                part = item.get("text")
+                if isinstance(part, str):
+                    text_parts.append(part)
+        content = "".join(text_parts).strip()
+
+    if not isinstance(content, str) or len(content.strip()) == 0:
+        raise ValueError("LLM response did not include JSON content.")
+
+    return json.loads(_strip_json_fences(content))
+
+
+def _scoring_prompt(agent_name: str, payload: BorrowerSignalInput) -> str:
+    serialized_payload = json.dumps(payload.model_dump(mode="json"), ensure_ascii=True)
+    return (
+        f"You are the {agent_name} specialist in a parallel credit-risk orchestration pipeline for Indian "
+        "credit-invisible borrowers. Score only from the given payload.\n\n"
+        "Return strict JSON with keys: score (0-100 integer), confidence (high|medium|low), reasoning (>=10 chars), "
+        "flags (array of short strings).\n"
+        "Do not add markdown. Do not include extra keys.\n\n"
+        f"Borrower payload:\n{serialized_payload}"
+    )
+
+
+def _compliance_prompt(payload: BorrowerSignalInput) -> str:
+    serialized_payload = json.dumps(payload.model_dump(mode="json"), ensure_ascii=True)
+    return (
+        "You are the Compliance and Fraud specialist in a parallel credit-risk orchestration pipeline for Indian "
+        "digital lending.\n\n"
+        "Return strict JSON with keys: rbi_compliant (boolean), fraud_risk (low|medium|high), "
+        "flags (array of short strings), notes (>=5 chars).\n"
+        "Treat these as prohibited sensitive attributes if present in declared_attributes keys: religion, caste, "
+        "gender, political_affiliation.\n"
+        "Do not add markdown. Do not include extra keys.\n\n"
+        f"Borrower payload:\n{serialized_payload}"
+    )
+
+
+async def _llm_income_agent(
+    payload: BorrowerSignalInput,
+    *,
+    endpoint: str,
+    api_key: str,
+    model: str,
+    timeout_seconds: int,
+) -> AgentScoreOutput:
+    llm_output = await asyncio.to_thread(
+        _chat_completion_json,
+        endpoint=endpoint,
+        api_key=api_key,
+        model=model,
+        timeout_seconds=timeout_seconds,
+        system_prompt="You are a precise financial risk scoring assistant.",
+        user_prompt=_scoring_prompt("Income Stability", payload),
+    )
+    return AgentScoreOutput.model_validate(llm_output)
+
+
+async def _llm_repayment_agent(
+    payload: BorrowerSignalInput,
+    *,
+    endpoint: str,
+    api_key: str,
+    model: str,
+    timeout_seconds: int,
+) -> AgentScoreOutput:
+    llm_output = await asyncio.to_thread(
+        _chat_completion_json,
+        endpoint=endpoint,
+        api_key=api_key,
+        model=model,
+        timeout_seconds=timeout_seconds,
+        system_prompt="You are a precise financial risk scoring assistant.",
+        user_prompt=_scoring_prompt("Repayment Behaviour", payload),
+    )
+    return AgentScoreOutput.model_validate(llm_output)
+
+
+async def _llm_lifestyle_agent(
+    payload: BorrowerSignalInput,
+    *,
+    endpoint: str,
+    api_key: str,
+    model: str,
+    timeout_seconds: int,
+) -> AgentScoreOutput:
+    llm_output = await asyncio.to_thread(
+        _chat_completion_json,
+        endpoint=endpoint,
+        api_key=api_key,
+        model=model,
+        timeout_seconds=timeout_seconds,
+        system_prompt="You are a precise financial risk scoring assistant.",
+        user_prompt=_scoring_prompt("Lifestyle Risk", payload),
+    )
+    return AgentScoreOutput.model_validate(llm_output)
+
+
+async def _llm_compliance_agent(
+    payload: BorrowerSignalInput,
+    *,
+    endpoint: str,
+    api_key: str,
+    model: str,
+    timeout_seconds: int,
+) -> ComplianceAgentOutput:
+    llm_output = await asyncio.to_thread(
+        _chat_completion_json,
+        endpoint=endpoint,
+        api_key=api_key,
+        model=model,
+        timeout_seconds=timeout_seconds,
+        system_prompt="You are a precise compliance and fraud-control assistant.",
+        user_prompt=_compliance_prompt(payload),
+    )
+    return ComplianceAgentOutput.model_validate(llm_output)
+
+
+def _append_fallback_flag(
+    output: AgentScoreOutput | ComplianceAgentOutput,
+    agent_name: str,
+) -> AgentScoreOutput | ComplianceAgentOutput:
+    fallback_flag = f"{agent_name}: {LLM_FALLBACK_FLAG_SUFFIX}"
+    if fallback_flag in output.flags:
+        return output
+    updated_flags = [*output.flags, fallback_flag]
+    if isinstance(output, AgentScoreOutput):
+        return output.model_copy(update={"flags": updated_flags})
+    return output.model_copy(update={"flags": updated_flags})
+
+
+async def _run_scoring_agent_with_fallback(
+    payload: BorrowerSignalInput,
+    *,
+    agent_name: str,
+    llm_enabled: bool,
+    llm_config: dict[str, str | int | bool],
+    llm_runner: Any,
+    rules_runner: Any,
+) -> AgentScoreOutput:
+    if not llm_enabled:
+        return await rules_runner(payload)
+
+    try:
+        return await llm_runner(
+            payload,
+            endpoint=str(llm_config["endpoint"]),
+            api_key=str(os.getenv("CREDIBLE_LLM_API_KEY", "").strip()),
+            model=str(llm_config["model"]),
+            timeout_seconds=int(llm_config["timeout_seconds"]),
+        )
+    except (
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        TimeoutError,
+        ValidationError,
+        ValueError,
+        urllib.error.URLError,
+    ):
+        fallback = await rules_runner(payload)
+        flagged = _append_fallback_flag(fallback, agent_name)
+        if not isinstance(flagged, AgentScoreOutput):
+            raise TypeError(f"Fallback for {agent_name} did not return AgentScoreOutput.")
+        return flagged
+
+
+async def _run_compliance_agent_with_fallback(
+    payload: BorrowerSignalInput,
+    *,
+    llm_enabled: bool,
+    llm_config: dict[str, str | int | bool],
+) -> ComplianceAgentOutput:
+    if not llm_enabled:
+        return await compliance_and_fraud_agent(payload)
+
+    try:
+        return await _llm_compliance_agent(
+            payload,
+            endpoint=str(llm_config["endpoint"]),
+            api_key=str(os.getenv("CREDIBLE_LLM_API_KEY", "").strip()),
+            model=str(llm_config["model"]),
+            timeout_seconds=int(llm_config["timeout_seconds"]),
+        )
+    except (
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        TimeoutError,
+        ValidationError,
+        ValueError,
+        urllib.error.URLError,
+    ):
+        fallback = await compliance_and_fraud_agent(payload)
+        flagged = _append_fallback_flag(fallback, "compliance")
+        if not isinstance(flagged, ComplianceAgentOutput):
+            raise TypeError("Fallback for compliance did not return ComplianceAgentOutput.")
+        return flagged
+
+
 async def run_all_agents(payload: BorrowerSignalInput) -> dict[str, AgentScoreOutput | ComplianceAgentOutput]:
+    llm_config = _llm_runtime_config()
+    llm_enabled = bool(llm_config["llm_enabled"])
     income, repayment, lifestyle, compliance = await asyncio.gather(
-        income_stability_agent(payload),
-        repayment_behaviour_agent(payload),
-        lifestyle_risk_agent(payload),
-        compliance_and_fraud_agent(payload),
+        _run_scoring_agent_with_fallback(
+            payload,
+            agent_name="income",
+            llm_enabled=llm_enabled,
+            llm_config=llm_config,
+            llm_runner=_llm_income_agent,
+            rules_runner=income_stability_agent,
+        ),
+        _run_scoring_agent_with_fallback(
+            payload,
+            agent_name="repayment",
+            llm_enabled=llm_enabled,
+            llm_config=llm_config,
+            llm_runner=_llm_repayment_agent,
+            rules_runner=repayment_behaviour_agent,
+        ),
+        _run_scoring_agent_with_fallback(
+            payload,
+            agent_name="lifestyle",
+            llm_enabled=llm_enabled,
+            llm_config=llm_config,
+            llm_runner=_llm_lifestyle_agent,
+            rules_runner=lifestyle_risk_agent,
+        ),
+        _run_compliance_agent_with_fallback(
+            payload,
+            llm_enabled=llm_enabled,
+            llm_config=llm_config,
+        ),
     )
     return {
         "income": income,
