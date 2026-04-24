@@ -69,3 +69,13 @@ python generate_test_statements.py
 ## Health check
 
 - `https://cred-ible.onrender.com/health`
+
+## CORS configuration
+
+The API allows the production Vercel app, local development origins, and matching Vercel preview URLs by default.
+
+To override the allowlist in deployment, set:
+
+```powershell
+$env:CREDIBLE_ALLOWED_ORIGINS="https://cred-ible.vercel.app,https://your-preview-or-custom-domain.vercel.app"
+```

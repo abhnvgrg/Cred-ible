@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 
@@ -41,16 +42,26 @@ app = FastAPI(
     description="Dynamic alternative credit scoring API for credit-invisible borrowers.",
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+
+def _allowed_origins() -> list[str]:
+    configured = os.getenv("CREDIBLE_ALLOWED_ORIGINS", "")
+    if configured.strip():
+        return [origin.strip().rstrip("/") for origin in configured.split(",") if origin.strip()]
+
+    return [
         "https://cred-ible.vercel.app",
+        "https://www.cred-ible.vercel.app",
         "http://localhost:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
-    ],
-    allow_credentials=False,
+    ]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_allowed_origins(),
+    allow_origin_regex=r"https://cred-ible(?:-[a-z0-9-]+)?\.vercel\.app",
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
