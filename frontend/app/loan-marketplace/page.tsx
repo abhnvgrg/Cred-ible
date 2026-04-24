@@ -1,1 +1,5 @@
-export { default } from "../marketplace/page";
+import MarketplacePage from "../marketplace/page";
+
+export default function LoanMarketplacePage() {
+  return <MarketplacePage />;
+}
