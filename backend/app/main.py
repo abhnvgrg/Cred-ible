@@ -15,6 +15,8 @@ from .experience import (
 )
 from .fixtures import load_personas
 from .ml_model import ModelTrainingError, model_is_trained, predict_risk, train_model
+from .routes.parse import router as parse_router
+from .routes.score import router as score_router
 from .resolver import resolve_scores
 from .schemas import (
     AuthResponse,
@@ -52,6 +54,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(parse_router)
+app.include_router(score_router)
 
 DEMO_PERSONAS = load_personas()
 

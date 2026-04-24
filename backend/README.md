@@ -48,6 +48,24 @@ Inspect runtime mode:
 
 - `GET /orchestration/status`
 
+## Statement parser API
+
+The parser ingests PDF/CSV statements and derives agent-ready signals.
+
+- `POST /parse/statement` (multipart):
+  - `file` (PDF or CSV)
+  - `borrower_name`
+  - `employment_type`
+  - `gst_applicable`
+  - `loan_amount_requested`
+- `GET /parse/personas` for 4 precomputed demo personas
+
+Synthetic test statements can be generated from repo root with:
+
+```powershell
+python generate_test_statements.py
+```
+
 ## Health check
 
 - `https://cred-ible.onrender.com/health`
