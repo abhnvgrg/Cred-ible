@@ -1,0 +1,24 @@
+{
+  "users": [
+    {
+      "user_id": "user_Jg8bwATvLiQ",
+      "full_name": "Aarav",
+      "work_email": "a@a.com",
+      "organization": "a firm",
+      "role": "admin",
+      "password_hash": "ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f",
+      "created_at": ""
+    }
+  ],
+  "orgs": [
+    {
+      "org_id": "org_atNa8e9F",
+      "name": "a firm",
+      "members": [
+        "user_Jg8bwATvLiQ"
+      ]
+    }
+  ],
+  "sessions": [],
+  "password_resets": []
+}
