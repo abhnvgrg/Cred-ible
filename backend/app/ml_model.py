@@ -303,7 +303,7 @@ def _load_credit_decision_features(dataset_path: Path) -> tuple[pd.DataFrame, pd
             "Rent Score (20%)": "decision_rent_score",
             "Utility Score (15%)": "decision_utility_score",
             "Raw Score": "decision_raw_score",
-            "Final Score (300-900)": "decision_final_score",
+            "Final Score (300-850)": "decision_final_score",
             "Confidence": "decision_confidence",
             "Risk Level": "decision_risk_level",
             "Recommended Loan (₹)": "decision_recommended_loan_inr",

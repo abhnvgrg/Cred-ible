@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
+import { loadSessionToken, clearSessionToken } from "@/lib/auth";
+import { apiFetch } from "@/lib/api";
 
 type NavItem = {
   href: string;
@@ -226,6 +228,30 @@ export function AppHeader() {
   useEffect(() => {
     document.documentElement.style.colorScheme = savedSettings.appearance.theme;
   }, [savedSettings.appearance.theme]);
+
+  useEffect(() => {
+    const token = loadSessionToken();
+    if (!token) return;
+
+    apiFetch("/auth/me", { headers: { Authorization: `Bearer ${token}` }, timeoutMs: 7000 })
+      .then((data: any) => {
+        setSavedSettings((prev) => ({
+          ...prev,
+          account: { ...prev.account, name: data.full_name || prev.account.name, email: data.work_email || prev.account.email },
+        }));
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleLogout = () => {
+    const token = loadSessionToken();
+    if (token) {
+      apiFetch("/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` }, timeoutMs: 5000 }).catch(() => {});
+      clearSessionToken();
+      // simple reload to reset app state
+      window.location.href = "/";
+    }
+  };
 
   const filteredNotifications = useMemo(() => {
     if (activeNotificationTab === "unread") {
@@ -493,7 +519,7 @@ export function AppHeader() {
                       <Link href="/landing-page" className="rounded-lg px-3 py-2 text-sm text-slate-200 hover:bg-indigo-500/15">
                         Help / Documentation
                       </Link>
-                      <button className="rounded-lg px-3 py-2 text-left text-sm text-rose-300 hover:bg-rose-500/15">Logout</button>
+                      <button onClick={handleLogout} className="rounded-lg px-3 py-2 text-left text-sm text-rose-300 hover:bg-rose-500/15">Logout</button>
                     </div>
                   </div>
                 ) : null}
@@ -707,7 +733,7 @@ export function AppHeader() {
                 <Link href="/landing-page" className="rounded-lg px-2 py-1.5 text-sm text-slate-200 hover:bg-indigo-500/15">
                   Help / Documentation
                 </Link>
-                <button className="rounded-lg px-2 py-1.5 text-left text-sm text-rose-300 hover:bg-rose-500/15">Logout</button>
+                <button onClick={handleLogout} className="rounded-lg px-2 py-1.5 text-left text-sm text-rose-300 hover:bg-rose-500/15">Logout</button>
               </div>
             </div>
           ) : null}

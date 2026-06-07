@@ -310,8 +310,8 @@ function runComplianceAgent(payload: BorrowerSignalInput): ComplianceAgentOutput
 }
 
 function scaleToCreditBand(score0To100: number): number {
-  const scaled = Math.round(300 + Math.max(0, Math.min(100, score0To100)) * 6);
-  return Math.max(300, Math.min(900, scaled));
+  const scaled = Math.round(300 + Math.max(0, Math.min(100, score0To100)) * 5.5);
+  return Math.max(300, Math.min(850, scaled));
 }
 
 function loanLimitFromScore(finalScore: number): string {

@@ -129,7 +129,7 @@ class AuthResponse(BaseModel):
     full_name: str
     work_email: str
     organization: str
-    role: Literal["analyst", "admin"]
+    role: Literal["analyst", "admin", "owner"]
     session_token: str
     expires_in_seconds: int = Field(ge=1)
     message: str

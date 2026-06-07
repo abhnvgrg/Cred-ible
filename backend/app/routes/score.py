@@ -36,7 +36,7 @@ FEATURE_TO_AGENT_WEIGHTS: dict[str, dict[str, float]] = {
 
 
 def _clip_score(value: float) -> int:
-    return int(max(300, min(900, round(value))))
+    return int(max(300, min(850, round(value))))
 
 
 def _safe_float(value: float) -> float:
