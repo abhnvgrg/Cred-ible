@@ -3,8 +3,9 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
+from datetime import datetime, timezone
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .agents import get_orchestration_status, run_all_agents
@@ -14,6 +15,7 @@ from .experience import (
     register_user,
     run_what_if_simulation,
 )
+from . import storage
 from .fixtures import load_personas
 from .ml_model import ModelTrainingError, model_is_trained, predict_risk, train_model
 from .routes.parse import router as parse_router
@@ -36,11 +38,33 @@ from .schemas import (
 )
 from .statement_parser import derive_signals_from_statement
 
+
+def _seconds_until_expiry(expires_at_utc: str) -> int:
+    expires_at = datetime.fromisoformat(expires_at_utc)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    remaining = int((expires_at - datetime.now(timezone.utc)).total_seconds())
+    return max(1, remaining)
+
 app = FastAPI(
     title="Cred-ible Scoring API",
     version="0.1.0",
     description="Dynamic alternative credit scoring API for credit-invisible borrowers.",
 )
+
+@app.on_event("startup")
+async def startup_event():
+    storage.init_db()
+    print("Database initialized")
+
+DEFAULT_ALLOWED_ORIGINS = [
+    "https://cred-ible.vercel.app",
+    "https://www.cred-ible.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+]
 
 
 def _allowed_origins() -> list[str]:
@@ -48,14 +72,7 @@ def _allowed_origins() -> list[str]:
     if configured.strip():
         return [origin.strip().rstrip("/") for origin in configured.split(",") if origin.strip()]
 
-    return [
-        "https://cred-ible.vercel.app",
-        "https://www.cred-ible.vercel.app",
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-    ]
+    return DEFAULT_ALLOWED_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,
@@ -143,6 +160,70 @@ async def register(payload: RegisterRequest) -> AuthResponse:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@app.get("/auth/me", response_model=AuthResponse)
+async def who_am_i(authorization: str | None = Header(default=None)) -> AuthResponse:
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing Authorization header")
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        raise HTTPException(status_code=401, detail="Expected 'Authorization: Bearer <token>'")
+
+    s = storage.get_session(token.strip())
+    if not s:
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    user = storage.get_user_by_id(s["user_id"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    organizations = user.get("organizations") or []
+    primary_org = organizations[0] if organizations else {"name": "", "role": "analyst"}
+
+    return AuthResponse(
+        user_id=user["user_id"],
+        full_name=user.get("full_name", ""),
+        work_email=user.get("work_email", ""),
+        organization=primary_org.get("name", ""),
+        role=primary_org.get("role", "analyst"),
+        session_token=s["session_token"],
+        expires_in_seconds=_seconds_until_expiry(s["expires_at_utc"]),
+        message="Session active",
+    )
+
+
+@app.post("/auth/logout")
+async def logout(authorization: str | None = Header(default=None)) -> dict:
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing Authorization header")
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        raise HTTPException(status_code=401, detail="Expected 'Authorization: Bearer <token>'")
+
+    storage.delete_session(token.strip())
+    return {"message": "Logged out"}
+
+
+@app.post("/auth/password-reset/request")
+async def password_reset_request(work_email: str) -> dict:
+    if not work_email:
+        raise HTTPException(status_code=400, detail="Missing work_email")
+    token = storage.create_password_reset(work_email)
+    # In real app we'd email the token. For demo return it.
+    return {"message": "Password reset token created", "token": token}
+
+
+@app.post("/auth/password-reset/confirm")
+async def password_reset_confirm(token: str, new_password: str) -> dict:
+    if not token or not new_password:
+        raise HTTPException(status_code=400, detail="Missing token or password")
+    ok = storage.consume_password_reset(token, new_password)
+    if not ok:
+        raise HTTPException(status_code=400, detail="Invalid token")
+    return {"message": "Password updated"}
+
+
 @app.post("/simulate/what-if", response_model=WhatIfResponse)
 async def what_if(payload: WhatIfRequest) -> WhatIfResponse:
     return run_what_if_simulation(payload)
@@ -175,7 +256,7 @@ async def derive_statement_signals(
 
 @app.get("/marketplace/offers", response_model=MarketplaceResponse)
 async def marketplace_offers(score: int = 670) -> MarketplaceResponse:
-    return get_marketplace_offers(score)
+    return get_marketplace_offers(score, None)
 
 
 @app.get("/model/status")

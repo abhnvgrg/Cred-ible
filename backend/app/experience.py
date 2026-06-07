@@ -4,6 +4,8 @@ import time
 from secrets import token_urlsafe
 from uuid import uuid4
 
+from . import storage
+
 from .resolver import COMPONENT_WEIGHTS
 from .schemas import (
     AgentBreakdown,
@@ -29,47 +31,110 @@ def _is_email_like(value: str) -> bool:
     return "@" in trimmed and "." in trimmed.split("@")[-1]
 
 
+def _primary_workspace(user: dict) -> tuple[str, str]:
+    memberships = user.get("organizations") or []
+    if not memberships:
+        return "", "analyst"
+
+    primary = memberships[0]
+    return primary.get("name", ""), primary.get("role", "analyst")
+
+
 def authenticate_user(payload: LoginRequest) -> AuthResponse:
-    if not _is_email_like(payload.email):
+    """
+    Authenticate a user based on email and password.
+
+    Args:
+        payload: The login request containing email and password.
+
+    Returns:
+        An AuthResponse containing user details and a session token.
+
+    Raises:
+        ValueError: If email is invalid or credentials do not match.
+    """
+    email = payload.email.strip().lower()
+
+    if not _is_email_like(email):
         raise ValueError("Please provide a valid work email.")
 
-    local_name = payload.email.split("@")[0].replace(".", " ").replace("_", " ").strip()
-    full_name = " ".join(part.capitalize() for part in local_name.split() if part) or "Workspace User"
-    domain = payload.email.split("@")[-1].split(".")[0]
-    organization = " ".join(part.capitalize() for part in domain.replace("-", " ").split())
+    user = storage.get_user_by_email(email)
+    if user is None or not storage.verify_password(user, payload.password):
+        raise ValueError("Invalid email or password.")
+
+    session = storage.create_session(user_id=user.user_id)
+    organization, role = _primary_workspace(user.__dict__) # storage.User is a dataclass, _primary_workspace expects a dict
 
     return AuthResponse(
-        user_id=f"user_{uuid4().hex[:10]}",
-        full_name=full_name,
-        work_email=payload.email.strip().lower(),
-        organization=organization or "Cred-ible Partner",
-        role="analyst",
-        session_token=token_urlsafe(32),
-        expires_in_seconds=8 * 60 * 60,
+        user_id=user.user_id,
+        full_name=user.full_name,
+        work_email=user.work_email,
+        organization=organization,
+        role=role,
+        session_token=session.session_token,
+        expires_in_seconds=storage.DEFAULT_SESSION_TTL_SECONDS,
         message="Signed in successfully.",
     )
 
 
 def register_user(payload: RegisterRequest) -> AuthResponse:
-    if not _is_email_like(payload.work_email):
+    """
+    Register a new user and create a workspace account.
+
+    Args:
+        payload: The registration request containing user and organization details.
+
+    Returns:
+        An AuthResponse containing user details and a session token.
+
+    Raises:
+        ValueError: If validation fails or the user already exists.
+    """
+    full_name = payload.full_name.strip()
+    work_email = payload.work_email.strip().lower()
+    organization = payload.organization.strip()
+
+    if not full_name:
+        raise ValueError("Full name is required.")
+
+    if not organization:
+        raise ValueError("Organization is required.")
+
+    if not _is_email_like(work_email):
         raise ValueError("Please provide a valid work email.")
+
     if payload.password != payload.confirm_password:
         raise ValueError("Password and confirm password must match.")
 
+    if len(payload.password) < 8:
+        raise ValueError("Password must be at least 8 characters long.")
+
+    try:
+        user = storage.create_user(
+            full_name=full_name,
+            work_email=work_email,
+            organization=organization,
+            password=payload.password,
+            role="admin",
+        )
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+
+    session = storage.create_session(user_id=user.user_id)
+
     return AuthResponse(
-        user_id=f"user_{uuid4().hex[:10]}",
-        full_name=payload.full_name.strip(),
-        work_email=payload.work_email.strip().lower(),
-        organization=payload.organization.strip(),
+        user_id=user.user_id,
+        full_name=user.full_name,
+        work_email=user.work_email,
+        organization=organization,
         role="admin",
-        session_token=token_urlsafe(32),
-        expires_in_seconds=8 * 60 * 60,
+        session_token=session.session_token,
+        expires_in_seconds=storage.DEFAULT_SESSION_TTL_SECONDS,
         message="Workspace account created successfully.",
     )
 
-
 def _clamp_score(value: float) -> int:
-    return max(300, min(900, int(round(value))))
+    return max(300, min(850, int(round(value))))
 
 
 def _clamp_component(value: float) -> int:
@@ -77,11 +142,11 @@ def _clamp_component(value: float) -> int:
 
 
 def _internal_from_score(score: int) -> float:
-    return max(0.0, min(100.0, (score - 300) / 6))
+    return max(0.0, min(100.0, (score - 300) / (850 - 300)))
 
 
 def _score_from_internal(value: float) -> int:
-    return _clamp_score(300 + (max(0.0, min(100.0, value)) * 6))
+    return _clamp_score(300 + (max(0.0, min(100.0, value)) * (850 - 300) / 100))
 
 
 def _component_internal(income: int, repayment: int, lifestyle: int) -> float:
@@ -162,6 +227,15 @@ def _risk_level_from_score(score: int) -> str:
 
 
 def run_what_if_simulation(payload: WhatIfRequest) -> WhatIfResponse:
+    """
+    Execute a what-if simulation to project credit score changes.
+
+    Args:
+        payload: The simulation request containing base score and shifts.
+
+    Returns:
+        A WhatIfResponse with projected score, breakdown, and recommendations.
+    """
     started = time.perf_counter()
     base_income, base_repayment, base_lifestyle = _derive_base_breakdown(payload)
     base_breakdown_was_derived = (
@@ -286,9 +360,26 @@ def _match(score: int, base: int, index: int) -> int:
     return max(55, min(99, adjusted))
 
 
-def get_marketplace_offers(score: int) -> MarketplaceResponse:
+def get_marketplace_offers(score: int, user: storage.User | dict[str, Any] | None = None) -> MarketplaceResponse:
+    """
+    Retrieve personalized marketplace offers based on a credit score.
+
+    Args:
+        score: The credit score to use for matching.
+        user: The optional user object (storage.User or dict) to personalize offers.
+
+    Returns:
+        A MarketplaceResponse containing a list of eligible offers.
+    """
     normalized_score = _clamp_score(score)
     rate_shift = _risk_rate_adjustment(normalized_score)
+
+    # Handle optional user, User dataclass, and dict
+    if user is None:
+        organization_name, role = "Guest Workspace", "analyst"
+    else:
+        user_dict = user.__dict__ if isinstance(user, storage.User) else user
+        organization_name, role = _primary_workspace(user_dict)
 
     base_offers = [
         {
@@ -323,8 +414,9 @@ def get_marketplace_offers(score: int) -> MarketplaceResponse:
         },
     ]
 
-    offers = [
-        MarketplaceOffer(
+    offers = []
+    for idx, offer in enumerate(base_offers):
+        marketplace_offer = MarketplaceOffer(
             lender=offer["lender"],
             product_type=offer["product_type"],
             eligible_amount_inr=max(
@@ -338,12 +430,15 @@ def get_marketplace_offers(score: int) -> MarketplaceResponse:
             ai_match_pct=_match(normalized_score, offer["ai_match_pct"], idx),
             rationale=offer["rationale"],
             requires_additional_docs=offer["requires_additional_docs"],
+            organization=organization_name,  # Now defined!
+            role=role,  # Now defined!
         )
-        for idx, offer in enumerate(base_offers)
-    ]
+        offers.append(marketplace_offer)
 
     offers.sort(key=lambda item: item.ai_match_pct, reverse=True)
+
     confidence: ConfidenceLevel = "high" if normalized_score >= 700 else "medium" if normalized_score >= 580 else "low"
+
     return MarketplaceResponse(
         score_used=normalized_score,
         confidence=confidence,

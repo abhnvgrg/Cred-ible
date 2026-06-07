@@ -18,8 +18,8 @@ def _clamp01(value: float) -> float:
 
 
 def _scale_to_credit_band(score_0_100: float) -> int:
-    scaled = int(round(300 + (max(0.0, min(100.0, score_0_100)) * 6)))
-    return max(300, min(900, scaled))
+    scaled = int(round(300 + (max(0.0, min(100.0, score_0_100)) * 5.5)))
+    return max(300, min(850, scaled))
 
 
 def _risk_level_from_score(score: int) -> str:
