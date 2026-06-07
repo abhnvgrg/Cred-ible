@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ThemeToggle } from "./ThemeToggle";
 
 type NavItem = {
   href: string;
@@ -438,6 +439,8 @@ export function AppHeader() {
                 </svg>
               </button>
 
+              <ThemeToggle />
+
               <div className="relative" ref={profileRef}>
                 <button
                   className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-slate-700 transition-colors hover:bg-slate-600"
@@ -597,6 +600,7 @@ export function AppHeader() {
 
         <div className="mt-4 border-t border-indigo-200/15 pt-4">
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <button
               type="button"
               aria-label="Settings"
