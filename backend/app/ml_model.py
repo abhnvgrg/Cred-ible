@@ -116,16 +116,73 @@ def _read_sheet_table(dataset_path: Path, sheet_name: str, header_key: str) -> p
     return table
 
 
+def _is_contained(candidate: Path, root: Path) -> bool:
+    """True if `candidate` resolves to a location inside `root`."""
+    try:
+        candidate.resolve().relative_to(root.resolve())
+    except ValueError:
+        return False
+    return True
+
+
+def available_datasets() -> dict[str, Path]:
+    """Datasets the API is permitted to train on, keyed by a safe public name.
+
+    Only files that actually exist directly under PROJECT_ROOT are listed. The
+    key — never a caller-supplied path — is what crosses the HTTP boundary.
+    """
+    registry: dict[str, Path] = {}
+    for candidate in sorted(PROJECT_ROOT.glob("*.csv")) + sorted(PROJECT_ROOT.glob("*.xlsx")):
+        if candidate.is_file() and not candidate.name.startswith("~$"):
+            registry[candidate.name] = candidate
+    return registry
+
+
+def resolve_dataset_key(dataset_key: str | None = None) -> Path:
+    """Resolve an untrusted dataset identifier against the allowlist.
+
+    Used by the HTTP layer. Rejects anything that is not an exact key in
+    `available_datasets()`, so traversal sequences and absolute paths cannot
+    reach the filesystem, and the error never echoes a resolved path back to
+    the caller (which would otherwise confirm which files exist on the host).
+    """
+    registry = available_datasets()
+    if dataset_key is None:
+        return resolve_dataset_path(None)
+
+    resolved = registry.get(dataset_key)
+    if resolved is None:
+        names = ", ".join(sorted(registry)) or "none available"
+        raise ModelTrainingError(
+            f"Unknown dataset '{dataset_key}'. Available datasets: {names}."
+        )
+    return resolved
+
+
 def resolve_dataset_path(dataset_path: Path | None = None) -> Path:
+    """Resolve a trusted dataset path. CLI use only — see `resolve_dataset_key`.
+
+    Even here the result is constrained to PROJECT_ROOT so a stray argument
+    cannot pull an arbitrary file off the host into a training run.
+    """
     if dataset_path is not None:
-        resolved = dataset_path if dataset_path.is_absolute() else PROJECT_ROOT / dataset_path
-        if resolved.exists():
-            return resolved
-        raise ModelTrainingError(f"Dataset file not found at '{resolved}'.")
+        for base in (Path.cwd(), PROJECT_ROOT):
+            resolved = dataset_path if dataset_path.is_absolute() else base / dataset_path
+            if resolved.exists() and _is_contained(resolved, PROJECT_ROOT):
+                return resolved
+            if dataset_path.is_absolute():
+                break
+        raise ModelTrainingError(
+            f"Dataset '{dataset_path.name}' not found under the project root."
+        )
 
     for candidate in DEFAULT_DATASET_CANDIDATES:
         if candidate.exists():
             return candidate
+
+    discovered = available_datasets()
+    if discovered:
+        return next(iter(discovered.values()))
 
     names = ", ".join(path.name for path in DEFAULT_DATASET_CANDIDATES)
     raise ModelTrainingError(f"No supported dataset file found. Expected one of: {names}.")

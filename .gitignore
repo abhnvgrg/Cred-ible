@@ -26,3 +26,6 @@ backend/.env.local
 
 # Generated artifacts
 backend/artifacts/
+
+# Local auth database
+backend/data/

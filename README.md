@@ -8,32 +8,13 @@ cred-ible is an AI-powered alternative credit scoring engine that translates UPI
 
 ---
 
-<<<<<<< HEAD
-- **Cred-ible Engine**: Process alternative data (UPI, GST, utility payments) in real-time to generate a 'Logic Score'.
-- **Real-Time Analysis**: Processing latency of under 1.2s for instantaneous borrowing decisions.
-- **What-If Simulator**: Advanced journey tool for predicting how changes in cash flow or behavior affect credit risk.
-- **Loan Marketplace**: Directly connects evaluated users with customized loan offers based on their generated logic score.
-- **AI Processing Agents**: Live agent-based demo runs (income, repayment, lifestyle, and compliance analysis).
-- **Parallel Specialist Orchestration**: Income, repayment, lifestyle, and compliance specialists are dispatched concurrently, with optional LLM-backed specialist execution.
-- **Offline Fallback Continuity**: Keeps the decision layer active even when various third-party APIs are unresponsive.
-=======
 ## The Problem
->>>>>>> 6173baf77a160726f4ed400281d634b3a491d4c5
 
 Over 400 million working Indians are effectively **credit-invisible** — not because they're risky, but because conventional bureau scores (CIBIL, Experian) only see EMI repayments and credit card history. A street vendor who pays rent on time every month, runs ₹80,000/month through UPI, and files GST diligently still shows up as *No Score*.
 
 cred-ible fixes that.
 
-<<<<<<< HEAD
-**Backend**
-- **Framework**: [FastAPI](https://fastapi.tiangolo.com/)
-- **Language**: Python 3.10+
-- **Orchestration**: Parallel specialist orchestration engine (rule-based by default, LLM-enabled via environment variables)
-- **Machine Learning**: Custom ML risk prediction models (trained via Excel datasets) for `/model/*` endpoints
-- **Server**: Uvicorn
-=======
 ---
->>>>>>> 6173baf77a160726f4ed400281d634b3a491d4c5
 
 ## How It Works
 
@@ -166,75 +147,9 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-<<<<<<< HEAD
-### 2. Frontend Setup
-
-Open a new terminal and navigate to the `frontend` directory.
-
-```powershell
-cd frontend
-
-# Install Node dependencies
-npm install
-
-# Setup environment variables
-copy .env.example .env.local
-
-# Run the development server
-npm run dev
-```
-*(The frontend will be available at `http://localhost:3000`.)*
-
-## 🧠 Model Training
-
-cred-ible uses an integrated machine learning model that predicts risk based on applicant data (low, medium, high). 
-
-To build or refresh the model locally based on demo data (found in the root directory like `credit_demo_dataset.xlsx`), run the following script from the `backend` directory:
-
-```powershell
-python train_model.py --dataset ..\credit_demo_dataset.xlsx
-```
-
-## 🤖 Parallel LLM Orchestration
-
-By default, scoring uses parallel rule-based specialists. To enable LLM-dispatched parallel specialists for the primary `/score` flow, configure:
-
-```powershell
-$env:CREDIBLE_LLM_ORCHESTRATION="true"
-$env:CREDIBLE_LLM_API_KEY="your_api_key"
-$env:CREDIBLE_LLM_MODEL="gpt-4.1-mini"
-$env:CREDIBLE_LLM_ENDPOINT="https://api.openai.com/v1/chat/completions"
-$env:CREDIBLE_LLM_TIMEOUT_SECONDS="14"
-```
-
-You can verify active orchestration mode at:
-
-- `GET /orchestration/status`
-
-## 📁 Repository Structure
-
-```
-cred-ible/
-├── backend/                   # FastAPI backend service
-│   ├── app/                   # API routes, Agents, ML handlers, and Schemas
-│   ├── train_model.py         # ML model training script
-│   └── requirements.txt       # Python dependencies
-├── frontend/                  # Next.js web application
-│   ├── app/                   # Next.js App Router structure (Pages & Layouts)
-│   ├── components/            # Reusable UI components & Primitives
-│   └── public/                # Static assets
-├── README.md                  # Project documentation (You are here)
-└── credit_demo_dataset.xlsx   # Sample dataset for model training
-```
-
-## ⚖️ Disclaimer & RBI Compliance
-
-*cred-ible outputs are decision-support insights and must be combined with full lender underwriting under prevailing RBI (Reserve Bank of India) digital lending guidance. Demo and assessment inputs may be retained for up to 30 days for audits, grievance resolution, and model monitoring.*
-=======
 The backend will be live at `http://127.0.0.1:8000`.  
 Check the health endpoint: `http://127.0.0.1:8000/health`  
 Interactive API docs: `http://127.0.0.1:8000/docs`
->>>>>>> 6173baf77a160726f4ed400281d634b3a491d4c5
 
 ---
 
@@ -313,8 +228,32 @@ Base URL: `http://127.0.0.1:8000`
 | `POST` | `/score` | Submit applicant data, receive Logic Score + decision |
 | `POST` | `/score/simulate` | What-If simulation — predict score under changed inputs |
 | `GET` | `/marketplace/offers` | Fetch matched lender offers for a given score |
-| `POST` | `/auth/login` | User authentication |
-| `POST` | `/train` | Trigger model retraining (authenticated) |
+| `POST` | `/auth/register` | Create an account. Always issued the `analyst` role |
+| `POST` | `/auth/login` | Exchange credentials for a signed access token |
+| `GET` | `/model/datasets` | List datasets `/model/train` accepts — **admin only** |
+| `POST` | `/model/train` | Trigger model retraining — **admin only** |
+
+### Authentication
+
+Accounts are stored in SQLite with scrypt-hashed passwords. `/auth/login`
+returns a short-lived HS256 JWT; send it as `Authorization: Bearer <token>`.
+
+Two roles: `analyst` (default) and `admin`. Registration never grants `admin`
+— promote a user deliberately, or create one directly:
+
+```python
+from app.auth import create_user
+create_user(email="you@example.com", password="a-long-password",
+            full_name="You", organization="Acme", role="admin")
+```
+
+Retraining overwrites the model artifact that every scoring request reads, so
+`/model/train` is admin-gated and takes a **dataset name** from
+`/model/datasets` — never a filesystem path.
+
+Set `CREDIBLE_JWT_SECRET` before deploying (see `backend/.env.example`). The
+app refuses to issue tokens in production without it rather than falling back
+to a default secret.
 
 Full interactive docs at `/docs` (Swagger UI) or `/redoc`.
 

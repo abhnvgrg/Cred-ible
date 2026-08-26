@@ -2,20 +2,31 @@ from __future__ import annotations
 
 import os
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .agents import get_orchestration_status, run_all_agents
-from .experience import (
-    authenticate_user,
-    get_marketplace_offers,
-    register_user,
-    run_what_if_simulation,
+from .auth import (
+    AuthError,
+    authenticate,
+    create_access_token,
+    create_user,
+    init_db,
+    require_admin,
 )
+from .experience import get_marketplace_offers, run_what_if_simulation
 from .fixtures import load_personas
-from .ml_model import ModelTrainingError, model_is_trained, predict_risk, train_model
+from .ml_model import (
+    ModelTrainingError,
+    available_datasets,
+    model_is_trained,
+    predict_risk,
+    resolve_dataset_key,
+    train_model,
+)
 from .routes.parse import router as parse_router
 from .routes.score import router as score_router
 from .resolver import resolve_scores
@@ -36,10 +47,17 @@ from .schemas import (
 )
 from .statement_parser import derive_signals_from_statement
 
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    yield
+
+
 app = FastAPI(
     title="Cred-ible Scoring API",
     version="0.1.0",
     description="Dynamic alternative credit scoring API for credit-invisible borrowers.",
+    lifespan=lifespan,
 )
 
 
@@ -127,20 +145,46 @@ async def score_demo_persona(persona_id: str) -> ScoreResponse:
     return await score_borrower(persona)
 
 
+def _auth_response(user: dict, message: str) -> AuthResponse:
+    token, ttl = create_access_token(user)
+    return AuthResponse(
+        user_id=user["id"],
+        full_name=user["full_name"],
+        work_email=user["email"],
+        organization=user["organization"],
+        role=user["role"],
+        session_token=token,
+        expires_in_seconds=ttl,
+        message=message,
+    )
+
+
 @app.post("/auth/login", response_model=AuthResponse)
 async def login(payload: LoginRequest) -> AuthResponse:
-    try:
-        return authenticate_user(payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    user = authenticate(payload.email, payload.password)
+    if user is None:
+        # One message for both "no such account" and "wrong password", so the
+        # endpoint cannot be used to enumerate registered emails.
+        raise HTTPException(status_code=401, detail="Incorrect email or password.")
+    return _auth_response(user, "Signed in successfully.")
 
 
-@app.post("/auth/register", response_model=AuthResponse)
+@app.post("/auth/register", response_model=AuthResponse, status_code=201)
 async def register(payload: RegisterRequest) -> AuthResponse:
+    if payload.password != payload.confirm_password:
+        raise HTTPException(
+            status_code=400, detail="Password and confirm password must match."
+        )
     try:
-        return register_user(payload)
-    except ValueError as exc:
+        user = create_user(
+            email=payload.work_email,
+            password=payload.password,
+            full_name=payload.full_name,
+            organization=payload.organization,
+        )
+    except AuthError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _auth_response(user, "Workspace account created successfully.")
 
 
 @app.post("/simulate/what-if", response_model=WhatIfResponse)
@@ -183,10 +227,26 @@ async def model_status() -> dict[str, bool]:
     return {"trained": model_is_trained()}
 
 
+@app.get("/model/datasets")
+async def list_trainable_datasets(_: dict = Depends(require_admin)) -> dict:
+    """Dataset names accepted by `/model/train`. Admin-only, like training."""
+    return {"datasets": sorted(available_datasets())}
+
+
 @app.post("/model/train", response_model=TrainModelResponse)
-async def train_credit_model(dataset_file: str | None = None) -> TrainModelResponse:
+async def train_credit_model(
+    dataset: str | None = None,
+    _: dict = Depends(require_admin),
+) -> TrainModelResponse:
+    """Retrain the risk model. Admin-only.
+
+    `dataset` is a name from `/model/datasets`, not a path. Retraining
+    overwrites the artifact every scoring request reads, so this must never be
+    reachable unauthenticated, and the caller must never be able to choose an
+    arbitrary file on the host.
+    """
     try:
-        dataset_path = Path(dataset_file) if dataset_file else None
+        dataset_path = resolve_dataset_key(dataset) if dataset else None
         result = train_model(dataset_path=dataset_path)
     except ModelTrainingError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

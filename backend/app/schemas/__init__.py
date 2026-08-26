@@ -113,15 +113,15 @@ class ScoreResponse(BaseModel):
 
 class LoginRequest(BaseModel):
     email: str = Field(min_length=5, max_length=254)
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=12, max_length=128)
 
 
 class RegisterRequest(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
     work_email: str = Field(min_length=5, max_length=254)
     organization: str = Field(min_length=2, max_length=120)
-    password: str = Field(min_length=8, max_length=128)
-    confirm_password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=12, max_length=128)
+    confirm_password: str = Field(min_length=12, max_length=128)
 
 
 class AuthResponse(BaseModel):

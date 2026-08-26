@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 import time
-from secrets import token_urlsafe
 from uuid import uuid4
 
 from .resolver import COMPONENT_WEIGHTS
 from .schemas import (
     AgentBreakdown,
-    AuthResponse,
     ConfidenceLevel,
-    LoginRequest,
     MarketplaceOffer,
     MarketplaceResponse,
-    RegisterRequest,
     WhatIfRecommendation,
     WhatIfRequest,
     WhatIfResponse,
@@ -27,45 +23,6 @@ MARKETPLACE_DISCLAIMER = (
 def _is_email_like(value: str) -> bool:
     trimmed = value.strip()
     return "@" in trimmed and "." in trimmed.split("@")[-1]
-
-
-def authenticate_user(payload: LoginRequest) -> AuthResponse:
-    if not _is_email_like(payload.email):
-        raise ValueError("Please provide a valid work email.")
-
-    local_name = payload.email.split("@")[0].replace(".", " ").replace("_", " ").strip()
-    full_name = " ".join(part.capitalize() for part in local_name.split() if part) or "Workspace User"
-    domain = payload.email.split("@")[-1].split(".")[0]
-    organization = " ".join(part.capitalize() for part in domain.replace("-", " ").split())
-
-    return AuthResponse(
-        user_id=f"user_{uuid4().hex[:10]}",
-        full_name=full_name,
-        work_email=payload.email.strip().lower(),
-        organization=organization or "Cred-ible Partner",
-        role="analyst",
-        session_token=token_urlsafe(32),
-        expires_in_seconds=8 * 60 * 60,
-        message="Signed in successfully.",
-    )
-
-
-def register_user(payload: RegisterRequest) -> AuthResponse:
-    if not _is_email_like(payload.work_email):
-        raise ValueError("Please provide a valid work email.")
-    if payload.password != payload.confirm_password:
-        raise ValueError("Password and confirm password must match.")
-
-    return AuthResponse(
-        user_id=f"user_{uuid4().hex[:10]}",
-        full_name=payload.full_name.strip(),
-        work_email=payload.work_email.strip().lower(),
-        organization=payload.organization.strip(),
-        role="admin",
-        session_token=token_urlsafe(32),
-        expires_in_seconds=8 * 60 * 60,
-        message="Workspace account created successfully.",
-    )
 
 
 def _clamp_score(value: float) -> int:
@@ -150,7 +107,8 @@ def _shift_gain(shift: int, base_component: int, max_gain: float) -> float:
         return 0.0
     normalized_shift = min(1.0, shift / 20)
     headroom = max(0.0, min(1.0, (100 - base_component) / 100))
-    return max_gain * normalized_shift * (0.3 + (0.7 * headroom))
+    # Improved formula: allows 40% minimum gain even with zero headroom, scaling to full gain with headroom
+    return max_gain * normalized_shift * (0.4 + (0.6 * headroom))
 
 
 def _risk_level_from_score(score: int) -> str:
@@ -170,12 +128,12 @@ def run_what_if_simulation(payload: WhatIfRequest) -> WhatIfResponse:
         or payload.base_lifestyle_score is None
     )
 
-    income_gain = _shift_gain(payload.income_shift, base_income, max_gain=18.0)
-    compliance_repayment_gain = _shift_gain(payload.compliance_boost, base_repayment, max_gain=12.0)
-    compliance_lifestyle_gain = _shift_gain(payload.compliance_boost, base_lifestyle, max_gain=8.0)
-    debt_repayment_gain = _shift_gain(payload.debt_reduction, base_repayment, max_gain=20.0)
-    debt_income_gain = _shift_gain(payload.debt_reduction, base_income, max_gain=4.0)
-    debt_lifestyle_gain = _shift_gain(payload.debt_reduction, base_lifestyle, max_gain=3.0)
+    income_gain = _shift_gain(payload.income_shift, base_income, max_gain=30.0)
+    compliance_repayment_gain = _shift_gain(payload.compliance_boost, base_repayment, max_gain=25.0)
+    compliance_lifestyle_gain = _shift_gain(payload.compliance_boost, base_lifestyle, max_gain=15.0)
+    debt_repayment_gain = _shift_gain(payload.debt_reduction, base_repayment, max_gain=35.0)
+    debt_income_gain = _shift_gain(payload.debt_reduction, base_income, max_gain=12.0)
+    debt_lifestyle_gain = _shift_gain(payload.debt_reduction, base_lifestyle, max_gain=8.0)
 
     projected_income = _clamp_component(base_income + income_gain + debt_income_gain)
     projected_repayment = _clamp_component(base_repayment + compliance_repayment_gain + debt_repayment_gain)
@@ -195,8 +153,7 @@ def run_what_if_simulation(payload: WhatIfRequest) -> WhatIfResponse:
 
     if payload.income_shift == 0 and payload.compliance_boost == 0 and payload.debt_reduction == 0:
         projected_score = payload.base_score
-    else:
-        projected_score = max(payload.base_score, projected_score)
+    # Allow natural score movement (up or down) without artificial baseline floor
 
     delta = projected_score - payload.base_score
     confidence = _scenario_confidence(payload, base_breakdown_was_derived, baseline_penalty=base_penalty)
