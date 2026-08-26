@@ -251,9 +251,12 @@ Retraining overwrites the model artifact that every scoring request reads, so
 `/model/train` is admin-gated and takes a **dataset name** from
 `/model/datasets` — never a filesystem path.
 
-Set `CREDIBLE_JWT_SECRET` before deploying (see `backend/.env.example`). The
-app refuses to issue tokens in production without it rather than falling back
-to a default secret.
+Sessions are server-side: the bearer token is an opaque random string and the
+database stores only its SHA-256 fingerprint, so a leaked database file hands
+over no live sessions. Logout, password reset, and role changes therefore take
+effect immediately rather than waiting for a token to expire. Point
+`CREDIBLE_DB_PATH` at persistent storage before deploying (see
+`backend/.env.example`); `/auth/login` is throttled per account.
 
 Full interactive docs at `/docs` (Swagger UI) or `/redoc`.
 

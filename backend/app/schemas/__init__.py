@@ -124,12 +124,21 @@ class RegisterRequest(BaseModel):
     confirm_password: str = Field(min_length=12, max_length=128)
 
 
+class PasswordResetRequest(BaseModel):
+    work_email: str = Field(min_length=5, max_length=254)
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str = Field(min_length=16, max_length=256)
+    new_password: str = Field(min_length=12, max_length=128)
+
+
 class AuthResponse(BaseModel):
     user_id: str
     full_name: str
     work_email: str
     organization: str
-    role: Literal["analyst", "admin"]
+    role: Literal["analyst", "admin", "owner"]
     session_token: str
     expires_in_seconds: int = Field(ge=1)
     message: str

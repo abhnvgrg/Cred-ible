@@ -27,5 +27,10 @@ backend/.env.local
 # Generated artifacts
 backend/artifacts/
 
-# Local auth database
+# Local auth database - never commit user records or password hashes
 backend/data/
+backend/data.json
+
+# Agent scratch files
+GEMINI.md
+~/.gemini/GEMINI.md

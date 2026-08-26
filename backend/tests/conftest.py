@@ -1,10 +1,3 @@
-"""Shared fixtures.
-
-Environment is configured before `app` is imported: `auth` reads its database
-path and secret policy at import time, so setting these afterwards would have
-no effect and the suite would write to the real users database.
-"""
-
 from __future__ import annotations
 
 import os
@@ -15,22 +8,46 @@ import pytest
 
 os.environ.setdefault("CREDIBLE_ENV", "test")
 os.environ.setdefault(
-    "CREDIBLE_AUTH_DB", str(Path(tempfile.mkdtemp(prefix="credible-test-")) / "users.db")
+    "CREDIBLE_DB_PATH",
+    str(Path(tempfile.mkdtemp(prefix="credible-test-")) / "auth.sqlite3"),
 )
+os.environ.setdefault("BCRYPT_ROUNDS", "4")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app.auth import create_user  # noqa: E402
+from app.auth import create_user, reset_rate_limiter  # noqa: E402
 from app.main import app  # noqa: E402
 
+ANALYST_EMAIL = "analyst@example.com"
+ADMIN_EMAIL = "admin@example.com"
 ANALYST_PASSWORD = "correct-horse-battery"
 ADMIN_PASSWORD = "another-long-password"
+
+
+@pytest.fixture(autouse=True)
+def _clean_throttle():
+    reset_rate_limiter()
+    yield
+    reset_rate_limiter()
 
 
 @pytest.fixture
 def client():
     with TestClient(app) as test_client:
         yield test_client
+
+
+def _ensure_user(email: str, password: str, name: str, role: str) -> None:
+    try:
+        create_user(
+            email=email,
+            password=password,
+            full_name=name,
+            organization="Acme",
+            role=role,
+        )
+    except Exception:
+        pass
 
 
 def _token_for(client: TestClient, email: str, password: str) -> str:
@@ -40,32 +57,22 @@ def _token_for(client: TestClient, email: str, password: str) -> str:
 
 
 @pytest.fixture
-def analyst_headers(client) -> dict[str, str]:
-    email = "analyst@example.com"
-    try:
-        create_user(
-            email=email,
-            password=ANALYST_PASSWORD,
-            full_name="Analyst",
-            organization="Acme",
-            role="analyst",
-        )
-    except Exception:
-        pass  # already created by an earlier test in the session
-    return {"Authorization": f"Bearer {_token_for(client, email, ANALYST_PASSWORD)}"}
+def analyst_token(client) -> str:
+    _ensure_user(ANALYST_EMAIL, ANALYST_PASSWORD, "Analyst", "analyst")
+    return _token_for(client, ANALYST_EMAIL, ANALYST_PASSWORD)
 
 
 @pytest.fixture
-def admin_headers(client) -> dict[str, str]:
-    email = "admin@example.com"
-    try:
-        create_user(
-            email=email,
-            password=ADMIN_PASSWORD,
-            full_name="Admin",
-            organization="Acme",
-            role="admin",
-        )
-    except Exception:
-        pass
-    return {"Authorization": f"Bearer {_token_for(client, email, ADMIN_PASSWORD)}"}
+def admin_token(client) -> str:
+    _ensure_user(ADMIN_EMAIL, ADMIN_PASSWORD, "Admin", "admin")
+    return _token_for(client, ADMIN_EMAIL, ADMIN_PASSWORD)
+
+
+@pytest.fixture
+def analyst_headers(analyst_token) -> dict[str, str]:
+    return {"Authorization": f"Bearer {analyst_token}"}
+
+
+@pytest.fixture
+def admin_headers(admin_token) -> dict[str, str]:
+    return {"Authorization": f"Bearer {admin_token}"}

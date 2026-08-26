@@ -48,7 +48,7 @@ const AGENT_SPLITS: Record<keyof SimSignals, Partial<Record<keyof SimResponse["a
 };
 
 function clipScore(value: number): number {
-  return Math.max(300, Math.min(900, Math.round(value)));
+  return Math.max(300, Math.min(850, Math.round(value)));
 }
 
 export function simulateScore(
@@ -135,7 +135,7 @@ function estimateSignalsFromScore(score: number): SimSignals {
     utility_bill_ontime_pct: clip(42 + (normalizedScore - 300) / 6, 35, 98),
     savings_rate_pct: clip((normalizedScore - 470) / 9, 0, 40),
     months_of_history: normalizedScore >= 760 ? 24 : normalizedScore >= 650 ? 12 : normalizedScore >= 560 ? 6 : 3,
-    debt_to_income_ratio: Number(clip(0.9 - (normalizedScore - 300) / 900, 0.05, 1.2).toFixed(2)),
+    debt_to_income_ratio: Number(clip(0.9 - (normalizedScore - 300) / 850, 0.05, 1.2).toFixed(2)),
     gst_compliance_score: Number(clip((normalizedScore - 420) / 420, 0.1, 1).toFixed(2))
   };
 }

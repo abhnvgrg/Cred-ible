@@ -2,24 +2,115 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-}
-
 @layer base {
+  :root {
+    /* Light Mode */
+    --primary: 238.7 83.6% 66.7%;
+    --secondary: 258.3 89.5% 66.3%;
+    --tertiary: 160.1 84.1% 39.4%;
+    --surface: 210 40% 98%;
+    --surface-low: 210 40% 96.1%;
+    --surface-card: 0 0% 100%;
+    --surface-raise: 214.3 31.8% 91.4%;
+    --outline-variant: 214.3 31.8% 85.9%;
+    
+    /* Slate Scale (Inverted for light mode) */
+    --slate-50: 222.2 84% 4.9%;
+    --slate-100: 222.2 47.4% 11.2%;
+    --slate-200: 215.3 25% 26.7%;
+    --slate-300: 215.3 19.3% 34.5%;
+    --slate-400: 215.4 16.3% 46.9%;
+    --slate-500: 215.3 19.3% 46.7%;
+    --slate-600: 215 20.2% 65.1%;
+    --slate-700: 212.7 26.8% 83.9%;
+    --slate-800: 214.3 31.8% 91.4%;
+    --slate-900: 210 40% 96.1%;
+    --slate-950: 210 40% 98%;
+
+    /* Indigo Scale (Shifted for contrast) */
+    --indigo-50: 244 47.1% 19.4%;
+    --indigo-100: 241.6 47.4% 33.5%;
+    --indigo-200: 243.7 53.7% 41.6%;
+    --indigo-300: 244.5 57.9% 50.6%;
+    --indigo-400: 243.4 75.4% 58.6%;
+    --indigo-500: 238.7 83.6% 66.7%;
+    --indigo-600: 234.5 89.5% 73.9%;
+    --indigo-700: 229.7 93.5% 81.8%;
+    --indigo-800: 228 96.5% 88.8%;
+    --indigo-900: 225.9 100% 93.9%;
+    --indigo-950: 226.1 100% 97.5%;
+
+    --white: 222.2 47.4% 11.2%; /* maps to slate-900 */
+    --black: 0 0% 100%; /* maps to white */
+    
+    /* Background gradients adjusted for light mode */
+    --bg-gradient-1: 238.7 83.6% 66.7%;
+    --bg-gradient-2: 258.3 89.5% 66.3%;
+    --bg-gradient-3: 160.1 84.1% 39.4%;
+    
+    /* Glow opacity in light mode */
+    --glow-opacity: 0.15;
+  }
+
+  .dark {
+    /* Dark Mode */
+    --primary: 234.5 89.5% 73.9%;
+    --secondary: 255.1 91.8% 76.1%;
+    --tertiary: 158.1 64.4% 51.6%;
+    --surface: 224 71.4% 4.1%;
+    --surface-low: 222.9 39.3% 7.1%;
+    --surface-card: 220.9 39.3% 11%;
+    --surface-raise: 215 27.9% 16.9%;
+    --outline-variant: 216.9 19.1% 26.7%;
+
+    /* Slate Scale (Normal) */
+    --slate-50: 210 40% 98%;
+    --slate-100: 210 40% 96.1%;
+    --slate-200: 214.3 31.8% 91.4%;
+    --slate-300: 212.7 26.8% 83.9%;
+    --slate-400: 215 20.2% 65.1%;
+    --slate-500: 215.3 19.3% 46.7%;
+    --slate-600: 215.4 16.3% 46.9%;
+    --slate-700: 215.3 19.3% 34.5%;
+    --slate-800: 215.3 25% 26.7%;
+    --slate-900: 222.2 47.4% 11.2%;
+    --slate-950: 222.2 84% 4.9%;
+
+    /* Indigo Scale (Normal) */
+    --indigo-50: 226.1 100% 97.5%;
+    --indigo-100: 225.9 100% 93.9%;
+    --indigo-200: 228 96.5% 88.8%;
+    --indigo-300: 229.7 93.5% 81.8%;
+    --indigo-400: 234.5 89.5% 73.9%;
+    --indigo-500: 238.7 83.6% 66.7%;
+    --indigo-600: 243.4 75.4% 58.6%;
+    --indigo-700: 244.5 57.9% 50.6%;
+    --indigo-800: 243.7 53.7% 41.6%;
+    --indigo-900: 241.6 47.4% 33.5%;
+    --indigo-950: 244 47.1% 19.4%;
+
+    --white: 0 0% 100%;
+    --black: 0 0% 0%;
+
+    --bg-gradient-1: 234.5 89.5% 73.9%;
+    --bg-gradient-2: 255.1 91.8% 76.1%;
+    --bg-gradient-3: 158.1 64.4% 51.6%;
+    --glow-opacity: 0.09;
+  }
+
   *,
   *::before,
   *::after {
-    @apply box-border;
+    @apply box-border border-slate-200 dark:border-slate-800;
   }
 
   body {
-    @apply m-0 min-h-screen bg-surface text-slate-100;
+    @apply m-0 min-h-screen bg-surface text-slate-100 transition-colors duration-300;
     background:
-      radial-gradient(circle at 12% 12%, rgb(129 140 248 / 9%), transparent 34%),
-      radial-gradient(circle at 82% 16%, rgb(167 139 250 / 9%), transparent 34%),
-      radial-gradient(circle at 50% 88%, rgb(52 211 153 / 4%), transparent 36%),
-      #030712;
+      radial-gradient(circle at 12% 12%, hsl(var(--bg-gradient-1) / var(--glow-opacity)), transparent 34%),
+      radial-gradient(circle at 82% 16%, hsl(var(--bg-gradient-2) / var(--glow-opacity)), transparent 34%),
+      radial-gradient(circle at 50% 88%, hsl(var(--bg-gradient-3) / calc(var(--glow-opacity) * 0.5)), transparent 36%),
+      hsl(var(--surface));
     font-family: var(--font-inter), Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
 
@@ -41,16 +132,16 @@
 
   .app-shell::before {
     @apply -right-[120px] -top-[180px] h-[360px] w-[360px] animate-float-slow;
-    background: rgb(129 140 248 / 12%);
+    background: hsl(var(--bg-gradient-1) / calc(var(--glow-opacity) * 1.3));
   }
 
   .app-shell::after {
     @apply -bottom-[220px] -left-[120px] h-[380px] w-[380px] animate-float animate-glow-pulse;
-    background: rgb(167 139 250 / 10%);
+    background: hsl(var(--bg-gradient-2) / calc(var(--glow-opacity) * 1.1));
   }
 
   .app-header {
-    @apply sticky top-0 z-30 border-b border-white/[0.06] bg-surface/60 backdrop-blur-2xl;
+    @apply sticky top-0 z-30 border-b border-white/[0.06] bg-surface/60 backdrop-blur-2xl transition-colors duration-300;
   }
 
   .app-header-inner {
@@ -62,17 +153,17 @@
   }
 
   .glass-card {
-    @apply rounded-[32px] border border-white/[0.06] bg-surface-card/40;
+    @apply rounded-[32px] border border-white/[0.06] bg-surface-card/40 transition-colors duration-300;
     backdrop-filter: blur(24px);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      0 24px 64px rgba(0, 0, 0, 0.4);
+      inset 0 1px 0 hsl(var(--white) / 0.08),
+      0 24px 64px hsl(var(--black) / 0.4);
   }
 
   .flat-card {
-    @apply rounded-3xl border border-white/[0.04] bg-surface-low/80;
+    @apply rounded-3xl border border-white/[0.04] bg-surface-low/80 transition-colors duration-300;
     backdrop-filter: blur(12px);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    box-shadow: inset 0 1px 0 hsl(var(--white) / 0.04);
   }
 
   .headline {
@@ -86,8 +177,8 @@
   }
 
   .eyebrow {
-    @apply inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1 text-[0.72rem] font-bold uppercase tracking-[0.18em] text-indigo-300;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    @apply inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1 text-[0.72rem] font-bold uppercase tracking-[0.18em] text-indigo-300 transition-colors duration-300;
+    box-shadow: inset 0 1px 0 hsl(var(--white) / 0.08);
   }
 
   .muted {
@@ -103,15 +194,15 @@
   }
 
   .btn-primary {
-    @apply bg-gradient-to-b from-indigo-500 to-indigo-600 text-white border border-indigo-400/30;
+    @apply bg-gradient-to-b from-indigo-500 to-indigo-600 text-slate-100 border border-indigo-400/30;
     box-shadow: 
-      inset 0 1px 0 rgba(255,255,255,0.2), 
-      0 8px 16px rgba(99, 102, 241, 0.25);
+      inset 0 1px 0 hsl(var(--white) / 0.2), 
+      0 8px 16px hsl(var(--primary) / 0.25);
   }
 
   .btn-secondary {
     @apply border border-white/[0.08] bg-surface-raise/40 text-slate-200 hover:bg-surface-raise/60;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    box-shadow: inset 0 1px 0 hsl(var(--white) / 0.05);
   }
 
   .btn-ghost {
@@ -119,9 +210,9 @@
   }
 
   .rbi-notice {
-    @apply rounded-3xl border border-white/[0.04] p-5;
-    background: linear-gradient(180deg, rgba(32, 37, 53, 0.4), rgba(15, 19, 31, 0.6));
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    @apply rounded-3xl border border-white/[0.04] p-5 transition-colors duration-300;
+    background: linear-gradient(180deg, hsl(var(--surface-raise) / 0.4), hsl(var(--surface-low) / 0.6));
+    box-shadow: inset 0 1px 0 hsl(var(--white) / 0.03);
   }
 
   .rbi-notice p {
@@ -129,11 +220,11 @@
   }
 
   .progress-track {
-    @apply h-2 w-full overflow-hidden rounded-full bg-surface-raise/70;
+    @apply h-2 w-full overflow-hidden rounded-full bg-surface-raise/70 transition-colors duration-300;
   }
 
   .progress-fill {
-    @apply h-full rounded-full bg-gradient-to-r from-primary to-secondary shadow-[0_0_16px_rgba(129,140,248,0.32)];
+    @apply h-full rounded-full bg-gradient-to-r from-primary to-secondary shadow-[0_0_16px_hsl(var(--primary)/0.32)];
     transition: width 320ms ease;
   }
   
@@ -149,7 +240,7 @@
   .form-select,
   .form-textarea {
     @apply w-full rounded-xl border border-white/[0.08] bg-surface-low px-3 py-2.5 text-sm text-slate-100 outline-none transition-all;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+    box-shadow: inset 0 1px 0 hsl(var(--white) / 0.02);
   }
 
   .form-input:focus,

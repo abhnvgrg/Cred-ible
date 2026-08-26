@@ -1,20 +1,28 @@
 from __future__ import annotations
 
+import logging
 import os
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .agents import get_orchestration_status, run_all_agents
+from . import storage
 from .auth import (
     AuthError,
     authenticate,
-    create_access_token,
+    check_login_allowed,
+    clear_login_failures,
+    create_session,
     create_user,
+    end_session,
+    get_current_user,
     init_db,
+    record_login_failure,
     require_admin,
 )
 from .experience import get_marketplace_offers, run_what_if_simulation
@@ -36,6 +44,8 @@ from .schemas import (
     BorrowerSignalInput,
     LoginRequest,
     MarketplaceResponse,
+    PasswordResetConfirm,
+    PasswordResetRequest,
     RegisterRequest,
     RiskPredictionResponse,
     ScoreResponse,
@@ -47,10 +57,20 @@ from .schemas import (
 )
 from .statement_parser import derive_signals_from_statement
 
+logger = logging.getLogger(__name__)
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
     yield
+
+
+def _seconds_until_expiry(expires_at_utc: str) -> int:
+    expires_at = datetime.fromisoformat(expires_at_utc)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    remaining = int((expires_at - datetime.now(timezone.utc)).total_seconds())
+    return max(1, remaining)
 
 
 app = FastAPI(
@@ -60,20 +80,22 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+DEFAULT_ALLOWED_ORIGINS = [
+    "https://cred-ible.vercel.app",
+    "https://www.cred-ible.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+]
+
 
 def _allowed_origins() -> list[str]:
     configured = os.getenv("CREDIBLE_ALLOWED_ORIGINS", "")
     if configured.strip():
         return [origin.strip().rstrip("/") for origin in configured.split(",") if origin.strip()]
 
-    return [
-        "https://cred-ible.vercel.app",
-        "https://www.cred-ible.vercel.app",
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-    ]
+    return DEFAULT_ALLOWED_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,
@@ -145,12 +167,11 @@ async def score_demo_persona(persona_id: str) -> ScoreResponse:
     return await score_borrower(persona)
 
 
-def _auth_response(user: dict, message: str) -> AuthResponse:
-    token, ttl = create_access_token(user)
+def _auth_response(user: dict, message: str, token: str, ttl: int) -> AuthResponse:
     return AuthResponse(
-        user_id=user["id"],
+        user_id=user["user_id"],
         full_name=user["full_name"],
-        work_email=user["email"],
+        work_email=user["work_email"],
         organization=user["organization"],
         role=user["role"],
         session_token=token,
@@ -161,12 +182,17 @@ def _auth_response(user: dict, message: str) -> AuthResponse:
 
 @app.post("/auth/login", response_model=AuthResponse)
 async def login(payload: LoginRequest) -> AuthResponse:
+    key = payload.email.strip().lower()
+    check_login_allowed(key)
+
     user = authenticate(payload.email, payload.password)
     if user is None:
-        # One message for both "no such account" and "wrong password", so the
-        # endpoint cannot be used to enumerate registered emails.
+        record_login_failure(key)
         raise HTTPException(status_code=401, detail="Incorrect email or password.")
-    return _auth_response(user, "Signed in successfully.")
+
+    clear_login_failures(key)
+    token, ttl = create_session(user["user_id"])
+    return _auth_response(user, "Signed in successfully.", token, ttl)
 
 
 @app.post("/auth/register", response_model=AuthResponse, status_code=201)
@@ -184,7 +210,58 @@ async def register(payload: RegisterRequest) -> AuthResponse:
         )
     except AuthError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return _auth_response(user, "Workspace account created successfully.")
+
+    token, ttl = create_session(user["user_id"])
+    return _auth_response(user, "Workspace account created successfully.", token, ttl)
+
+
+@app.get("/auth/me", response_model=AuthResponse)
+async def who_am_i(user: dict = Depends(get_current_user)) -> AuthResponse:
+    return _auth_response(
+        user,
+        "Session active.",
+        user["session_token"],
+        _seconds_until_expiry(user["expires_at_utc"]),
+    )
+
+
+@app.post("/auth/logout")
+async def logout(user: dict = Depends(get_current_user)) -> dict:
+    end_session(user["session_token"])
+    return {"message": "Signed out."}
+
+
+@app.post("/auth/password-reset/request")
+async def password_reset_request(payload: PasswordResetRequest) -> dict:
+    try:
+        token = storage.create_password_reset(payload.work_email)
+    except AuthError:
+        token = None
+
+    if token is not None and os.getenv("CREDIBLE_ENV", "development").lower() not in {
+        "prod",
+        "production",
+    }:
+        logger.info("Password reset token for %s: %s", payload.work_email, token)
+
+    return {
+        "message": (
+            "If an account exists for that address, a reset link has been sent."
+        )
+    }
+
+
+@app.post("/auth/password-reset/confirm")
+async def password_reset_confirm(payload: PasswordResetConfirm) -> dict:
+    try:
+        ok = storage.consume_password_reset(payload.token, payload.new_password)
+    except AuthError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not ok:
+        raise HTTPException(
+            status_code=400, detail="That reset link is invalid or has expired."
+        )
+    return {"message": "Password updated. Please sign in again."}
 
 
 @app.post("/simulate/what-if", response_model=WhatIfResponse)
@@ -219,7 +296,7 @@ async def derive_statement_signals(
 
 @app.get("/marketplace/offers", response_model=MarketplaceResponse)
 async def marketplace_offers(score: int = 670) -> MarketplaceResponse:
-    return get_marketplace_offers(score)
+    return get_marketplace_offers(score, None)
 
 
 @app.get("/model/status")
@@ -229,7 +306,6 @@ async def model_status() -> dict[str, bool]:
 
 @app.get("/model/datasets")
 async def list_trainable_datasets(_: dict = Depends(require_admin)) -> dict:
-    """Dataset names accepted by `/model/train`. Admin-only, like training."""
     return {"datasets": sorted(available_datasets())}
 
 
@@ -238,13 +314,6 @@ async def train_credit_model(
     dataset: str | None = None,
     _: dict = Depends(require_admin),
 ) -> TrainModelResponse:
-    """Retrain the risk model. Admin-only.
-
-    `dataset` is a name from `/model/datasets`, not a path. Retraining
-    overwrites the artifact every scoring request reads, so this must never be
-    reachable unauthenticated, and the caller must never be able to choose an
-    arbitrary file on the host.
-    """
     try:
         dataset_path = resolve_dataset_key(dataset) if dataset else None
         result = train_model(dataset_path=dataset_path)

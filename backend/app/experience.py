@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import time
+from typing import Any
 from uuid import uuid4
+
+from . import storage
 
 from .resolver import COMPONENT_WEIGHTS
 from .schemas import (
@@ -25,8 +28,17 @@ def _is_email_like(value: str) -> bool:
     return "@" in trimmed and "." in trimmed.split("@")[-1]
 
 
+def _primary_workspace(user: dict) -> tuple[str, str]:
+    memberships = user.get("organizations") or []
+    if not memberships:
+        return "", "analyst"
+
+    primary = memberships[0]
+    return primary.get("name", ""), primary.get("role", "analyst")
+
+
 def _clamp_score(value: float) -> int:
-    return max(300, min(900, int(round(value))))
+    return max(300, min(850, int(round(value))))
 
 
 def _clamp_component(value: float) -> int:
@@ -34,11 +46,11 @@ def _clamp_component(value: float) -> int:
 
 
 def _internal_from_score(score: int) -> float:
-    return max(0.0, min(100.0, (score - 300) / 6))
+    return max(0.0, min(100.0, (score - 300) / (850 - 300)))
 
 
 def _score_from_internal(value: float) -> int:
-    return _clamp_score(300 + (max(0.0, min(100.0, value)) * 6))
+    return _clamp_score(300 + (max(0.0, min(100.0, value)) * (850 - 300) / 100))
 
 
 def _component_internal(income: int, repayment: int, lifestyle: int) -> float:
@@ -107,7 +119,6 @@ def _shift_gain(shift: int, base_component: int, max_gain: float) -> float:
         return 0.0
     normalized_shift = min(1.0, shift / 20)
     headroom = max(0.0, min(1.0, (100 - base_component) / 100))
-    # Improved formula: allows 40% minimum gain even with zero headroom, scaling to full gain with headroom
     return max_gain * normalized_shift * (0.4 + (0.6 * headroom))
 
 
@@ -153,7 +164,6 @@ def run_what_if_simulation(payload: WhatIfRequest) -> WhatIfResponse:
 
     if payload.income_shift == 0 and payload.compliance_boost == 0 and payload.debt_reduction == 0:
         projected_score = payload.base_score
-    # Allow natural score movement (up or down) without artificial baseline floor
 
     delta = projected_score - payload.base_score
     confidence = _scenario_confidence(payload, base_breakdown_was_derived, baseline_penalty=base_penalty)
@@ -243,9 +253,15 @@ def _match(score: int, base: int, index: int) -> int:
     return max(55, min(99, adjusted))
 
 
-def get_marketplace_offers(score: int) -> MarketplaceResponse:
+def get_marketplace_offers(score: int, user: storage.User | dict[str, Any] | None = None) -> MarketplaceResponse:
     normalized_score = _clamp_score(score)
     rate_shift = _risk_rate_adjustment(normalized_score)
+
+    if user is None:
+        organization_name, role = "Guest Workspace", "analyst"
+    else:
+        user_dict = user.__dict__ if isinstance(user, storage.User) else user
+        organization_name, role = _primary_workspace(user_dict)
 
     base_offers = [
         {
@@ -280,8 +296,9 @@ def get_marketplace_offers(score: int) -> MarketplaceResponse:
         },
     ]
 
-    offers = [
-        MarketplaceOffer(
+    offers = []
+    for idx, offer in enumerate(base_offers):
+        marketplace_offer = MarketplaceOffer(
             lender=offer["lender"],
             product_type=offer["product_type"],
             eligible_amount_inr=max(
@@ -295,12 +312,15 @@ def get_marketplace_offers(score: int) -> MarketplaceResponse:
             ai_match_pct=_match(normalized_score, offer["ai_match_pct"], idx),
             rationale=offer["rationale"],
             requires_additional_docs=offer["requires_additional_docs"],
+            organization=organization_name,  # Now defined!
+            role=role,  # Now defined!
         )
-        for idx, offer in enumerate(base_offers)
-    ]
+        offers.append(marketplace_offer)
 
     offers.sort(key=lambda item: item.ai_match_pct, reverse=True)
+
     confidence: ConfidenceLevel = "high" if normalized_score >= 700 else "medium" if normalized_score >= 580 else "low"
+
     return MarketplaceResponse(
         score_used=normalized_score,
         confidence=confidence,

@@ -1,4 +1,4 @@
-export type AuthRole = "analyst" | "admin";
+export type AuthRole = "analyst" | "admin" | "owner";
 
 export interface AuthSession {
   user_id: string;
@@ -12,6 +12,7 @@ export interface AuthSession {
 }
 
 const AUTH_SESSION_KEY = "cred-ible:auth-session:v1";
+const AUTH_TOKEN_KEY = "cred-ible:session-token:v1";
 
 function setSessionStorageValue(key: string, value: string): boolean {
   if (typeof window === "undefined") return false;
@@ -52,7 +53,7 @@ function isAuthSession(value: unknown): value is AuthSession {
     typeof value.full_name === "string" &&
     typeof value.work_email === "string" &&
     typeof value.organization === "string" &&
-    (value.role === "analyst" || value.role === "admin") &&
+    (value.role === "analyst" || value.role === "admin" || value.role === "owner") &&
     typeof value.session_token === "string" &&
     typeof value.expires_in_seconds === "number" &&
     typeof value.message === "string"
@@ -60,7 +61,13 @@ function isAuthSession(value: unknown): value is AuthSession {
 }
 
 export function saveAuthSession(session: AuthSession): boolean {
-  return setSessionStorageValue(AUTH_SESSION_KEY, JSON.stringify(session));
+  const ok = setSessionStorageValue(AUTH_SESSION_KEY, JSON.stringify(session));
+  try {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(AUTH_TOKEN_KEY, session.session_token);
+    }
+  } catch {}
+  return ok;
 }
 
 export function loadAuthSession(): AuthSession | null {
@@ -75,5 +82,31 @@ export function loadAuthSession(): AuthSession | null {
 }
 
 export function clearAuthSession(): void {
+  clearSessionToken();
+}
+
+export function saveSessionToken(token: string): void {
+  try {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+    }
+  } catch {}
+}
+
+export function loadSessionToken(): string | null {
+  try {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(AUTH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function clearSessionToken(): void {
   removeSessionStorageValue(AUTH_SESSION_KEY);
+  try {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+  } catch {}
 }
