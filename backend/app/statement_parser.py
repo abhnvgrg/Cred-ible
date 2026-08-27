@@ -77,8 +77,9 @@ def _longest_month_gap(date_series: pd.Series) -> int:
 
     longest = 0
     for previous, current in zip(periods, periods[1:]):
-        gap = int(current - previous) - 1
-        longest = max(longest, gap)
+        difference = current - previous
+        months = difference.n if hasattr(difference, "n") else int(difference)
+        longest = max(longest, months - 1)
     return max(0, longest)
 
 
