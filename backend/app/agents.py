@@ -296,6 +296,11 @@ async def compliance_and_fraud_agent(payload: BorrowerSignalInput) -> Compliance
     )
 
 
+FALLBACK_FLAG_TEMPLATE = (
+    "{agent}: LLM scoring unavailable, deterministic rules used instead"
+)
+
+
 def _env_enabled(name: str) -> bool:
     raw_value = os.getenv(name, "")
     return raw_value.strip().lower() in LLM_TRUE_VALUES
@@ -522,7 +527,10 @@ def _append_fallback_flag(
     output: AgentScoreOutput | ComplianceAgentOutput,
     agent_name: str,
 ) -> AgentScoreOutput | ComplianceAgentOutput:
-    return output
+    note = FALLBACK_FLAG_TEMPLATE.format(agent=agent_name)
+    if note in output.flags:
+        return output
+    return output.model_copy(update={"flags": [*output.flags, note]})
 
 
 async def _run_scoring_agent_with_fallback(
