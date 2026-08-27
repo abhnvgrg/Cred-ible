@@ -1,3 +1,4 @@
+import { loadSessionToken } from "./auth";
 import { API_BASE_URL } from "@/lib/env";
 
 type QueryValue = string | number | boolean | null | undefined;
@@ -34,6 +35,13 @@ export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Prom
 
   if (requestInit.body && !(requestInit.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
+  }
+
+  if (!headers.has("Authorization")) {
+    const token = loadSessionToken();
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
   }
 
   const onAbort = () => abortController.abort();

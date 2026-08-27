@@ -34,3 +34,6 @@ backend/data.json
 # Agent scratch files
 GEMINI.md
 ~/.gemini/GEMINI.md
+
+# Personal engineering notes, not part of the repository
+docs/

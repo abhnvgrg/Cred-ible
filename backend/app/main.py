@@ -15,6 +15,7 @@ from . import storage
 from .auth import (
     AuthError,
     authenticate,
+    get_current_user,
     check_login_allowed,
     clear_login_failures,
     create_session,
@@ -144,7 +145,10 @@ async def list_personas() -> dict[str, list[dict[str, str]]]:
 
 
 @app.post("/score", response_model=ScoreResponse)
-async def score_borrower(payload: BorrowerSignalInput) -> ScoreResponse:
+async def score_borrower(
+    payload: BorrowerSignalInput,
+    _: dict = Depends(get_current_user),
+) -> ScoreResponse:
     started = time.perf_counter()
     agent_outputs = await run_all_agents(payload)
     processing_time_ms = int((time.perf_counter() - started) * 1000)
@@ -265,7 +269,10 @@ async def password_reset_confirm(payload: PasswordResetConfirm) -> dict:
 
 
 @app.post("/simulate/what-if", response_model=WhatIfResponse)
-async def what_if(payload: WhatIfRequest) -> WhatIfResponse:
+async def what_if(
+    payload: WhatIfRequest,
+    _: dict = Depends(get_current_user),
+) -> WhatIfResponse:
     return run_what_if_simulation(payload)
 
 
@@ -273,6 +280,7 @@ async def what_if(payload: WhatIfRequest) -> WhatIfResponse:
 async def derive_statement_signals(
     signal_type: SignalType,
     statement: UploadFile = File(...),
+    _: dict = Depends(get_current_user),
 ) -> StatementDerivationResponse:
     try:
         content = await statement.read()
@@ -323,7 +331,10 @@ async def train_credit_model(
 
 
 @app.post("/model/predict-risk", response_model=RiskPredictionResponse)
-async def predict_credit_risk(payload: BorrowerProfileInput) -> RiskPredictionResponse:
+async def predict_credit_risk(
+    payload: BorrowerProfileInput,
+    _: dict = Depends(get_current_user),
+) -> RiskPredictionResponse:
     try:
         predicted_risk, class_probabilities, model_trained_at = predict_risk(payload.model_dump())
     except ModelTrainingError as exc:

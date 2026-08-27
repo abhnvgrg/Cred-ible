@@ -407,3 +407,84 @@ def test_schema_constrains_roles_at_the_database_level():
                 "UPDATE memberships SET role = 'root' WHERE user_id = ?",
                 (user.user_id,),
             )
+
+
+PROTECTED_ENDPOINTS = [
+    ("post", "/score"),
+    ("post", "/simulate/what-if"),
+    ("post", "/model/predict-risk"),
+]
+
+PUBLIC_ENDPOINTS = [
+    ("get", "/health"),
+    ("get", "/personas"),
+    ("get", "/model/status"),
+    ("get", "/marketplace/offers"),
+]
+
+
+@pytest.mark.parametrize("method,path", PROTECTED_ENDPOINTS)
+def test_borrower_data_endpoints_require_a_session(client, method, path):
+    response = getattr(client, method)(path, json={})
+
+    assert response.status_code in (401, 403), (
+        f"{method.upper()} {path} accepted borrower data with no session"
+    )
+
+
+@pytest.mark.parametrize("method,path", PROTECTED_ENDPOINTS)
+def test_borrower_data_endpoints_reject_a_bad_token(client, method, path):
+    response = getattr(client, method)(
+        path, json={}, headers={"Authorization": "Bearer not-a-real-token"}
+    )
+
+    assert response.status_code in (401, 403)
+
+
+def test_uploading_a_statement_requires_a_session(client):
+    response = client.post(
+        "/signals/derive?signal_type=upi",
+        files={"statement": ("a.csv", b"date,amount\n2025-01-01,100", "text/csv")},
+    )
+
+    assert response.status_code in (401, 403)
+
+
+def test_parsing_a_statement_requires_a_session(client):
+    response = client.post(
+        "/parse/statement",
+        files={"file": ("a.csv", b"date,amount\n2025-01-01,100", "text/csv")},
+        data={
+            "borrower_name": "Test",
+            "employment_type": "salaried",
+            "gst_applicable": "false",
+            "loan_amount_requested": "100000",
+        },
+    )
+
+    assert response.status_code in (401, 403)
+
+
+@pytest.mark.parametrize("method,path", PUBLIC_ENDPOINTS)
+def test_the_public_surface_stays_public(client, method, path):
+    assert getattr(client, method)(path).status_code == 200
+
+
+def test_the_demo_personas_stay_public(client):
+    personas = client.get("/personas").json()
+    first = personas["personas"][0]["id"] if personas.get("personas") else None
+    if first is None:
+        pytest.skip("no demo personas are configured")
+
+    assert client.post(f"/score/demo/{first}").status_code == 200
+
+
+def test_an_analyst_can_score_a_borrower(client, analyst_headers):
+    response = client.post(
+        "/simulate/what-if",
+        json={"base_score": 700, "income_shift_pct": 5.0},
+        headers=analyst_headers,
+    )
+
+    assert response.status_code in (200, 422)
+    assert response.status_code != 401

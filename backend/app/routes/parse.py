@@ -5,9 +5,10 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 import random
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import ValidationError
 
+from ..auth import get_current_user
 from ..parsers import parse_statement_file
 from ..parsers.base import ParsedTransaction, ParserError
 from ..parsers.signals import derive_signals
@@ -319,6 +320,7 @@ async def parse_statement_endpoint(
     employment_type: str = Form(...),
     gst_applicable: bool = Form(...),
     loan_amount_requested: int = Form(...),
+    _: dict = Depends(get_current_user),
 ) -> ParseResponse:
     try:
         request = ParseRequest(
