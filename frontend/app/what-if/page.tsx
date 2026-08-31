@@ -64,7 +64,6 @@ export default function WhatIfPage() {
             const nextAnalysis = buildSimulationAnalysis(parsedStatement, storedScore, response);
             setAnalysis(nextAnalysis.json);
             setAnalysisSummary(nextAnalysis.summary);
-            // Save simulation result to sessionStorage for result page
             if (typeof window !== "undefined") {
               window.sessionStorage.setItem("cred-ible:simulation-result:v1", JSON.stringify(response));
             }

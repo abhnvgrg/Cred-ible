@@ -1,4 +1,3 @@
-"""Quick smoke test for POST /parse/statement"""
 import urllib.request
 import json
 

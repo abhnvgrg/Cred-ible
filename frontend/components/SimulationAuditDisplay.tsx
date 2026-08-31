@@ -187,7 +187,6 @@ export function SimulationAuditDisplay({ analysis }: { analysis: SimulationAnaly
   );
 }
 
-// Helper Components
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-outline-variant/25 bg-surface-low/70 p-4">

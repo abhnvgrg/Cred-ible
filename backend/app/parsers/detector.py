@@ -39,45 +39,40 @@ class ParseDetectionResult:
     warnings: list[str]
 
 
-# ---------------------------------------------------------------------------
-# Keyword fingerprints per bank.
-# Higher-weight keywords (more unique to a bank) are listed first.
-# Each keyword that appears in the haystack contributes +1 to that bank's score.
-# ---------------------------------------------------------------------------
 BANK_KEYWORDS: dict[str, tuple[str, ...]] = {
     "sbi": (
         "state bank of india",
         "sbi",
-        "ref no./cheque no",          # exact SBI CSV header fragment
-        "txn date",                   # SBI date column name
-        "sbiin",                      # SBI SWIFT / IFSC prefix
-        "yono",                       # SBI's app name
+        "ref no./cheque no",
+        "txn date",
+        "sbiin",
+        "yono",
         "branch code",
     ),
     "hdfc": (
         "hdfc bank",
         "hdfc",
-        "withdrawal amt",             # HDFC CSV column fragment
+        "withdrawal amt",
         "deposit amt",
-        "chq./ref.no",                # HDFC cheque column
+        "chq./ref.no",
         "hdfcbank",
-        "value dt",                   # HDFC value-date column abbreviation
+        "value dt",
     ),
     "axis": (
         "axis bank",
         "axis",
-        "tran date",                  # Axis date column name
-        "particulars",                # Axis narration column
-        "init.br",                    # Axis initiating-branch column
+        "tran date",
+        "particulars",
+        "init.br",
         "axisbank",
-        "chqno",                      # Axis cheque column
+        "chqno",
     ),
     "icici": (
         "icici bank",
         "icici",
-        "withdrawals",                # ICICI debit column (plural)
-        "deposits",                   # ICICI credit column (plural)
-        "transaction remarks",        # ICICI description label
+        "withdrawals",
+        "deposits",
+        "transaction remarks",
         "icicibank",
         "imobile",
         "balance(inr)",
@@ -85,7 +80,6 @@ BANK_KEYWORDS: dict[str, tuple[str, ...]] = {
     ),
 }
 
-# Minimum score to accept a bank detection (avoids false positives on generic words)
 _MIN_DETECTION_SCORE = 1
 
 
@@ -102,19 +96,16 @@ def _build_parser(bank: str) -> BaseStatementParser:
 
 
 def _extract_preview_text(filename: str, content: bytes) -> str:
-    """Extract a plain-text preview suitable for keyword matching."""
     extension = Path(filename or "").suffix.lower()
 
     if extension == ".pdf":
         try:
             with pdfplumber.open(BytesIO(content)) as pdf:
                 texts: list[str] = []
-                # Read first 3 pages to catch account info that appears late
                 for page in pdf.pages[:3]:
                     page_text = page.extract_text() or ""
                     if page_text:
                         texts.append(page_text)
-                    # Also read first-page table headers for keyword matching
                     tables = page.extract_tables() or []
                     for table in tables[:1]:
                         if table and table[0]:
@@ -125,7 +116,6 @@ def _extract_preview_text(filename: str, content: bytes) -> str:
 
     if extension == ".csv":
         try:
-            # Read enough to cover the header + a few data rows
             return content.decode("utf-8", errors="ignore")[:8000]
         except Exception:
             return ""
@@ -134,9 +124,6 @@ def _extract_preview_text(filename: str, content: bytes) -> str:
 
 
 def detect_bank(filename: str, content: bytes) -> str:
-    """
-    Return the most likely bank name ('sbi', 'hdfc', 'axis', 'icici', 'generic').
-    """
     preview = _extract_preview_text(filename, content)
     haystack = f"{filename}\n{preview}".lower()
 
@@ -149,7 +136,6 @@ def detect_bank(filename: str, content: bytes) -> str:
     if best_score < _MIN_DETECTION_SCORE:
         return "generic"
 
-    # Tie-break: if two banks share the top score, prefer generic to avoid wrong parser
     top_scorers = [bank for score, bank in scored if score == best_score]
     if len(top_scorers) > 1:
         return "generic"
@@ -158,10 +144,6 @@ def detect_bank(filename: str, content: bytes) -> str:
 
 
 def parse_statement_transactions(filename: str, content: bytes) -> ParseDetectionResult:
-    """
-    Main entry point: detect bank, attempt bank-specific parse,
-    fall back to generic parser on failure.
-    """
     detected_bank = detect_bank(filename, content)
     parser = _build_parser(detected_bank)
     warnings: list[str] = []
@@ -176,7 +158,6 @@ def parse_statement_transactions(filename: str, content: bytes) -> ParseDetectio
         )
     except ParserError as primary_error:
         if detected_bank == "generic":
-            # Already tried generic — re-raise with the original message
             raise
 
         fallback_parser = GenericStatementParser()
@@ -193,6 +174,4 @@ def parse_statement_transactions(filename: str, content: bytes) -> ParseDetectio
                 warnings=warnings,
             )
         except ParserError:
-            # Neither bank-specific nor generic could parse it — surface the
-            # original, more-descriptive error
             raise primary_error

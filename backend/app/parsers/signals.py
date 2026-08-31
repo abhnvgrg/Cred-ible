@@ -23,10 +23,6 @@ import pandas as pd
 from .base import ParsedTransaction
 
 
-# ---------------------------------------------------------------------------
-# Detection keyword lists
-# ---------------------------------------------------------------------------
-
 UPI_KEYWORDS = ("upi/", "upi-", "phonepe", "gpay", "paytm", "bhim")
 
 UTILITY_KEYWORDS = (
@@ -66,10 +62,6 @@ INTERNAL_TRANSFER_KEYWORDS = (
 )
 
 
-# ---------------------------------------------------------------------------
-# Result container
-# ---------------------------------------------------------------------------
-
 @dataclass(frozen=True)
 class DerivedSignalResult:
     signals: dict[str, int | float]
@@ -81,10 +73,6 @@ class DerivedSignalResult:
     warnings: list[str] = field(default_factory=list)
 
 
-# ---------------------------------------------------------------------------
-# Helper functions
-# ---------------------------------------------------------------------------
-
 def _clip(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
 
@@ -94,10 +82,6 @@ def _normalize_narration(text: str) -> str:
 
 
 def _extract_merchant(narration: str) -> str:
-    """
-    Best-effort merchant name extraction from UPI / NEFT narrations.
-    UPI narrations typically look like: UPI/MERCHANT NAME/TXN-ID/...
-    """
     cleaned = re.sub(r"[^a-z0-9/\- ]+", " ", narration.lower())
     for separator in ("/", "-"):
         parts = [part.strip() for part in cleaned.split(separator) if part.strip()]
@@ -115,19 +99,9 @@ def _is_upi(narration: str) -> bool:
 
 
 def _is_internal_transfer(narration: str, borrower_name: str) -> bool:
-    """
-    Identify internal (self) transfers that should be excluded from income.
-
-    Rules:
-      - narration contains "self transfer", "own account", "neft to self"
-      - narration contains the borrower's full name (at least 2 tokens with
-        length > 2 must all appear) — a single first name is too ambiguous.
-    """
     lowered = narration.lower()
     if any(keyword in lowered for keyword in INTERNAL_TRANSFER_KEYWORDS):
         return True
-    # Same-name payee detection: require at least 2 significant name tokens
-    # to avoid false positives (e.g. "Raju" matching "UPI/RAJU-VENDOR/...")
     name_tokens = [
         token for token in re.split(r"[\s\-]+", borrower_name.lower())
         if len(token) > 2
@@ -138,7 +112,6 @@ def _is_internal_transfer(narration: str, borrower_name: str) -> bool:
 
 
 def _is_utility(narration: str, amount: int) -> bool:
-    """Utility payment: vendor keyword match AND amount between ₹200–₹15,000."""
     lowered = narration.lower()
     if amount < 200 or amount > 15_000:
         return False
@@ -146,12 +119,6 @@ def _is_utility(narration: str, amount: int) -> bool:
 
 
 def _utility_timeliness_score(day_of_month: int) -> float:
-    """
-    On-time scoring for utility payments.
-      - Paid on/before 15th → 1.0 (on-time)
-      - Paid after 20th     → 0.0 (late)
-      - Paid 16th–20th      → 0.5 (neutral)
-    """
     if day_of_month <= 15:
         return 1.0
     if day_of_month > 20:
@@ -167,7 +134,6 @@ def _is_mobile_recharge(narration: str, amount: int) -> bool:
 
 
 def _to_frame(transactions: list[ParsedTransaction]) -> pd.DataFrame:
-    """Convert parsed transactions to a working DataFrame with derived columns."""
     rows = [
         {
             "date": transaction.date,
@@ -191,15 +157,7 @@ def _to_frame(transactions: list[ParsedTransaction]) -> pd.DataFrame:
     return frame.sort_values("date")
 
 
-# ---------------------------------------------------------------------------
-# Regularity & trend helpers
-# ---------------------------------------------------------------------------
-
 def _monthly_credit_regularity(monthly_credits: pd.Series) -> float:
-    """
-    regularity_score = 1 - (std_dev / mean), clipped to [0, 1].
-    Measures how consistent monthly credit amounts are.
-    """
     if monthly_credits.empty:
         return 0.0
     mean_credits = float(monthly_credits.mean())
@@ -210,10 +168,6 @@ def _monthly_credit_regularity(monthly_credits: pd.Series) -> float:
 
 
 def _monthly_trend_pct(monthly_values: pd.Series) -> float:
-    """
-    % change in transaction volume: avg of first 3 months vs. last 3 months.
-    Clipped to [-100, +300] to avoid extreme outliers.
-    """
     if monthly_values.empty:
         return 0.0
     window = min(3, len(monthly_values))
@@ -225,14 +179,6 @@ def _monthly_trend_pct(monthly_values: pd.Series) -> float:
 
 
 def _estimated_fixed_emi(debit_rows: pd.DataFrame) -> float:
-    """
-    Detect likely EMI payments:
-      - Same approximate amount (±5%) recurring on the same date (±3 days)
-        each month, with amount > ₹1,000.
-      - Must appear in at least 3 distinct months to count as recurring.
-
-    Returns total monthly EMI estimate (sum of median amounts per EMI cluster).
-    """
     if debit_rows.empty:
         return 0.0
 
@@ -271,7 +217,6 @@ def _estimated_fixed_emi(debit_rows: pd.DataFrame) -> float:
                 "months": {month_period},
             })
 
-    # Only count clusters that recur in >= 3 distinct months
     recurring = [c for c in clusters if len(c["months"]) >= 3]
     if not recurring:
         return 0.0
@@ -279,27 +224,15 @@ def _estimated_fixed_emi(debit_rows: pd.DataFrame) -> float:
     return float(sum(np.median(c["amounts"]) for c in recurring))
 
 
-# ---------------------------------------------------------------------------
-# Main signal derivation entry point
-# ---------------------------------------------------------------------------
-
 def derive_signals(
     transactions: list[ParsedTransaction],
     *,
     borrower_name: str,
 ) -> DerivedSignalResult:
-    """
-    Compute all 14 derived signals from a list of parsed transactions.
-
-    This function is the single bridge between raw transaction data and the
-    4-agent scoring pipeline.  The returned signal dict keys are fixed by
-    pipeline contract and must not be renamed.
-    """
     frame = _to_frame(transactions)
     if frame.empty:
         raise ValueError("No valid transaction rows were available for signal derivation.")
 
-    # --- Month index covering the full statement period (incl. gaps) -------
     all_months = pd.period_range(
         frame["date"].min().to_period("M"),
         frame["date"].max().to_period("M"),
@@ -308,7 +241,6 @@ def derive_signals(
     month_labels = [str(m) for m in all_months]
     statement_months = len(month_labels)
 
-    # --- Monthly aggregates -------------------------------------------------
     monthly = frame.groupby("month", as_index=True).agg(
         monthly_credits=("credit", "sum"),
         monthly_debits=("debit", "sum"),
@@ -316,9 +248,6 @@ def derive_signals(
     )
     monthly = monthly.reindex(month_labels, fill_value=0)
 
-    # -----------------------------------------------------------------------
-    # Signal 1 & 2: UPI transaction count and average value
-    # -----------------------------------------------------------------------
     upi_rows = frame[frame["is_upi"]]
     upi_monthly_txn_count = int(round(len(upi_rows) / max(statement_months, 1)))
     upi_avg_txn_value = (
@@ -326,23 +255,14 @@ def derive_signals(
         if not upi_rows.empty else 0
     )
 
-    # -----------------------------------------------------------------------
-    # Signal 3: Merchant diversity (unique merchants / total txns, 0–1)
-    # -----------------------------------------------------------------------
     merchant_diversity = _clip(
         frame["merchant"].nunique() / max(len(frame), 1),
         0.0,
         1.0,
     )
 
-    # -----------------------------------------------------------------------
-    # Signal 4: Regularity score (consistency of monthly credits)
-    # -----------------------------------------------------------------------
     regularity_score = _monthly_credit_regularity(monthly["monthly_credits"])
 
-    # -----------------------------------------------------------------------
-    # Signal 5 & 6: Monthly income (excluding self-transfers) & stability
-    # -----------------------------------------------------------------------
     internal_mask = frame["narration"].apply(
         lambda text: _is_internal_transfer(text, borrower_name)
     )
@@ -360,9 +280,6 @@ def derive_signals(
         monthly_income_inr = 0
         income_stability_score = 0.0
 
-    # -----------------------------------------------------------------------
-    # Signal 7: Savings rate %
-    # -----------------------------------------------------------------------
     credit_nonzero = monthly["monthly_credits"] > 0
     if credit_nonzero.any():
         savings_values = (
@@ -376,9 +293,6 @@ def derive_signals(
     else:
         savings_rate_pct = 0.0
 
-    # -----------------------------------------------------------------------
-    # Signal 8: Average closing balance (last 3 months)
-    # -----------------------------------------------------------------------
     if frame["balance"].notna().any():
         balance_monthly = (
             frame.dropna(subset=["balance"])
@@ -390,7 +304,6 @@ def derive_signals(
             .fillna(0)
         )
     else:
-        # No balance column — estimate from cumulative net flow
         running_balance = (monthly["monthly_credits"] - monthly["monthly_debits"]).cumsum()
         balance_monthly = running_balance
 
@@ -398,18 +311,12 @@ def derive_signals(
         float(balance_monthly.tail(min(3, len(balance_monthly))).mean())
     ))
 
-    # -----------------------------------------------------------------------
-    # Signal 9: Debt-to-income ratio (EMI / income)
-    # -----------------------------------------------------------------------
     emi_estimate = _estimated_fixed_emi(frame[frame["debit"] > 0].copy())
     debt_to_income_ratio = (
         0.0 if monthly_income_inr <= 0
         else float(emi_estimate / monthly_income_inr)
     )
 
-    # -----------------------------------------------------------------------
-    # Signal 10: Utility bill on-time %
-    # -----------------------------------------------------------------------
     utility_rows = frame[
         frame.apply(
             lambda row: _is_utility(str(row["narration"]), int(row["txn_amount_abs"])),
@@ -423,9 +330,6 @@ def derive_signals(
             utility_rows["date"].dt.day.apply(_utility_timeliness_score).mean() * 100.0
         )
 
-    # -----------------------------------------------------------------------
-    # Signal 11 & 12: Mobile recharge frequency and consistency
-    # -----------------------------------------------------------------------
     recharge_rows = frame[
         frame.apply(
             lambda row: _is_mobile_recharge(str(row["narration"]), int(row["txn_amount_abs"])),
@@ -453,19 +357,9 @@ def derive_signals(
     else:
         recharge_consistency_score = 0.0
 
-    # -----------------------------------------------------------------------
-    # Signal 13: Months of history
-    # (already computed as statement_months)
-    # -----------------------------------------------------------------------
 
-    # -----------------------------------------------------------------------
-    # Signal 14: Monthly volume trend %
-    # -----------------------------------------------------------------------
     monthly_volume_trend_pct = _monthly_trend_pct(monthly["monthly_txn_count"])
 
-    # -----------------------------------------------------------------------
-    # Flags & confidence scoring
-    # -----------------------------------------------------------------------
     upi_inactive = upi_rows.empty
 
     confidence = 0.85
@@ -494,9 +388,6 @@ def derive_signals(
     if low_history_warning:
         confidence = min(confidence, 0.49)
 
-    # -----------------------------------------------------------------------
-    # Assemble result (field names are fixed by pipeline contract)
-    # -----------------------------------------------------------------------
     signals = {
         "upi_monthly_txn_count": int(upi_monthly_txn_count),
         "upi_avg_txn_value": int(upi_avg_txn_value),

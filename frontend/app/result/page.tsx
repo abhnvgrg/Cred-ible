@@ -5,7 +5,6 @@ import type { StoredScoreResult } from "@/lib/scoring";
 import { loadScoreResult, loadParsedStatementResult } from "@/lib/scoring";
 import { useEffect, useState } from "react";
 
-// Dashboard Components
 import { SystemsOverview } from "@/components/dashboard/SystemsOverview";
 import { ScoreVisualizer } from "@/components/dashboard/ScoreVisualizer";
 import { ScoreBreakdown } from "@/components/dashboard/ScoreBreakdown";
@@ -29,10 +28,8 @@ export default function ResultPage() {
     }
     setStoredResult(nextResult);
 
-    // Try to load parsed statement and build simulation analysis if available
     const parsedStatement = loadParsedStatementResult();
     if (parsedStatement) {
-      // Try to get stored simulation data from sessionStorage
       const simulationDataStr = typeof window !== "undefined" ? window.sessionStorage.getItem("cred-ible:simulation-result:v1") : null;
       if (simulationDataStr) {
         try {
@@ -40,7 +37,6 @@ export default function ResultPage() {
           const nextAnalysis = buildSimulationAnalysis(parsedStatement, nextResult, simulationResult);
           setSimulationAnalysis(nextAnalysis.json);
         } catch {
-          // Failed to parse simulation data, continue without it
         }
       }
     }

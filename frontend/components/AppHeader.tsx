@@ -248,7 +248,6 @@ export function AppHeader() {
     if (token) {
       apiFetch("/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` }, timeoutMs: 5000 }).catch(() => {});
       clearSessionToken();
-      // simple reload to reset app state
       window.location.href = "/";
     }
   };

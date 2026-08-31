@@ -117,7 +117,6 @@ def _read_sheet_table(dataset_path: Path, sheet_name: str, header_key: str) -> p
 
 
 def _is_contained(candidate: Path, root: Path) -> bool:
-    """True if `candidate` resolves to a location inside `root`."""
     try:
         candidate.resolve().relative_to(root.resolve())
     except ValueError:
@@ -126,11 +125,6 @@ def _is_contained(candidate: Path, root: Path) -> bool:
 
 
 def available_datasets() -> dict[str, Path]:
-    """Datasets the API is permitted to train on, keyed by a safe public name.
-
-    Only files that actually exist directly under PROJECT_ROOT are listed. The
-    key — never a caller-supplied path — is what crosses the HTTP boundary.
-    """
     registry: dict[str, Path] = {}
     for candidate in sorted(PROJECT_ROOT.glob("*.csv")) + sorted(PROJECT_ROOT.glob("*.xlsx")):
         if candidate.is_file() and not candidate.name.startswith("~$"):
@@ -139,13 +133,6 @@ def available_datasets() -> dict[str, Path]:
 
 
 def resolve_dataset_key(dataset_key: str | None = None) -> Path:
-    """Resolve an untrusted dataset identifier against the allowlist.
-
-    Used by the HTTP layer. Rejects anything that is not an exact key in
-    `available_datasets()`, so traversal sequences and absolute paths cannot
-    reach the filesystem, and the error never echoes a resolved path back to
-    the caller (which would otherwise confirm which files exist on the host).
-    """
     registry = available_datasets()
     if dataset_key is None:
         return resolve_dataset_path(None)
@@ -160,11 +147,6 @@ def resolve_dataset_key(dataset_key: str | None = None) -> Path:
 
 
 def resolve_dataset_path(dataset_path: Path | None = None) -> Path:
-    """Resolve a trusted dataset path. CLI use only — see `resolve_dataset_key`.
-
-    Even here the result is constrained to PROJECT_ROOT so a stray argument
-    cannot pull an arbitrary file off the host into a training run.
-    """
     if dataset_path is not None:
         for base in (Path.cwd(), PROJECT_ROOT):
             resolved = dataset_path if dataset_path.is_absolute() else base / dataset_path
@@ -546,7 +528,6 @@ def _load_flat_csv_dataset(dataset_path: Path) -> pd.DataFrame:
             f"CSV dataset '{dataset_path.name}' is missing required columns: {', '.join(missing)}."
         )
 
-    # Keep model-serving compatibility with BorrowerProfileInput by exposing the baseline profile fields.
     df["occupation"] = df["employment_type"].astype(str).str.strip()
     df["sector"] = df.get("loan_purpose", df["employment_type"]).astype(str).str.strip()
     df["city"] = df["state"].astype(str).str.strip()

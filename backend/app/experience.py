@@ -312,8 +312,8 @@ def get_marketplace_offers(score: int, user: storage.User | dict[str, Any] | Non
             ai_match_pct=_match(normalized_score, offer["ai_match_pct"], idx),
             rationale=offer["rationale"],
             requires_additional_docs=offer["requires_additional_docs"],
-            organization=organization_name,  # Now defined!
-            role=role,  # Now defined!
+            organization=organization_name,
+            role=role,
         )
         offers.append(marketplace_offer)
 

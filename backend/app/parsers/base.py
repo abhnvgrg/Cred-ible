@@ -11,7 +11,6 @@ import pandas as pd
 import pdfplumber
 
 
-# All Indian bank date formats, tried in priority order
 DATE_PATTERNS = (
     "%d/%m/%Y",
     "%d-%m-%Y",
@@ -55,11 +54,10 @@ class ParsedTransaction:
 
 
 class ParserError(ValueError):
-    """Raised when a statement cannot be parsed into usable transactions."""
+    pass
 
 
 def normalize_column_name(value: str) -> str:
-    """Lowercase, replace non-alphanumeric runs with underscores, strip edges."""
     normalized = "".join(ch.lower() if ch.isalnum() else "_" for ch in value.strip())
     while "__" in normalized:
         normalized = normalized.replace("__", "_")
@@ -67,7 +65,6 @@ def normalize_column_name(value: str) -> str:
 
 
 def parse_date(value: object) -> datetime | None:
-    """Try all known Indian bank date formats; fall back to pandas."""
     if value is None:
         return None
     if isinstance(value, datetime):
@@ -77,7 +74,6 @@ def parse_date(value: object) -> datetime | None:
     if not text or text in {"-", "—", "na", "n/a", "nan", "none"}:
         return None
 
-    # Remove leading/trailing whitespace from cell text that may wrap
     text = " ".join(text.split())
 
     for pattern in DATE_PATTERNS:
@@ -93,13 +89,6 @@ def parse_date(value: object) -> datetime | None:
 
 
 def parse_amount(value: object) -> float | None:
-    """
-    Parse an INR amount string handling:
-    - Thousand-comma separators: 1,23,456.78
-    - DR/CR suffixes
-    - Parenthetical negatives (1234.00)
-    - Empty/dash strings
-    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not pd.isna(value):
@@ -121,12 +110,10 @@ def parse_amount(value: object) -> float | None:
         negative = True
         text = text[1:-1]
 
-    # Remove currency symbols and thousand separators
     cleaned = re.sub(r"[^\d.\-]", "", text)
     if not cleaned or cleaned == ".":
         return None
 
-    # Guard against multiple decimal points (malformed PDF extraction)
     parts = cleaned.split(".")
     if len(parts) > 2:
         cleaned = parts[0] + "." + "".join(parts[1:])
@@ -142,12 +129,10 @@ def parse_amount(value: object) -> float | None:
 
 
 def read_csv_bytes(content: bytes) -> pd.DataFrame:
-    """Read CSV, trying UTF-8 then latin-1; skip blank rows."""
     for encoding in ("utf-8", "latin-1", "utf-8-sig"):
         try:
             frame = pd.read_csv(BytesIO(content), encoding=encoding, dtype=str)
             frame = frame.dropna(how="all")
-            # Drop rows that are entirely whitespace
             frame = frame[~frame.apply(lambda r: r.str.strip().eq("").all(), axis=1)]
             return frame
         except UnicodeDecodeError:
@@ -158,11 +143,6 @@ def read_csv_bytes(content: bytes) -> pd.DataFrame:
 
 
 def _skip_preamble_rows(rows: list[list[str | None]], max_skip: int = 30) -> list[list[str | None]]:
-    """
-    Bank PDFs often have 10-25 rows of account metadata before the actual
-    transaction table header. Find the first row that looks like a header
-    (contains date/narration/debit/credit keywords) and return from there.
-    """
     header_tokens = {
         "date", "narration", "description", "particulars", "debit",
         "credit", "withdrawal", "deposit", "balance", "amount",
@@ -183,13 +163,6 @@ def _is_header_line(line: str) -> bool:
 
 
 def _rows_from_pdf_text(raw_text: str) -> list[dict[str, object]]:
-    """
-    Fallback extractor for text-based PDFs where table extraction fails.
-
-    It parses line-oriented transactions that start with a date and usually
-    end with amount columns. This is intentionally permissive to support
-    non-ruled statements where pdfplumber.extract_tables() returns nothing.
-    """
     parsed_rows: list[dict[str, object]] = []
     for raw_line in raw_text.splitlines():
         line = " ".join((raw_line or "").split())
@@ -200,8 +173,6 @@ def _rows_from_pdf_text(raw_text: str) -> list[dict[str, object]]:
 
         date_match = DATE_AT_START_RE.match(line)
         if not date_match:
-            # Treat non-date lines as narration continuations for the
-            # previous transaction if they look like plain text.
             if parsed_rows and not AMOUNT_TOKEN_RE.search(line):
                 previous = str(parsed_rows[-1].get("narration") or "").strip()
                 parsed_rows[-1]["narration"] = f"{previous} {line}".strip()
@@ -270,15 +241,6 @@ def _rows_from_pdf_text(raw_text: str) -> list[dict[str, object]]:
 
 
 def read_pdf_tables(content: bytes) -> tuple[pd.DataFrame, str]:
-    """
-    Extract all tables from every PDF page, concatenate them, and return
-    (combined_dataframe, full_text).
-
-    Strategy:
-    1. Try pdfplumber's table extraction with lattice and stream settings.
-    2. Skip metadata preamble rows that appear before the transaction header.
-    3. Concatenate pages, re-using the first page's header for all.
-    """
     table_frames: list[pd.DataFrame] = []
     extracted_text: list[str] = []
     column_header: list[str] | None = None
@@ -301,7 +263,6 @@ def read_pdf_tables(content: bytes) -> tuple[pd.DataFrame, str]:
             if page_text:
                 extracted_text.append(page_text)
 
-            # Try lattice (ruled lines) first, fall back to stream (whitespace)
             tables = page.extract_tables(table_settings) or []
             if not tables:
                 tables = page.extract_tables(stream_settings) or []
@@ -319,7 +280,6 @@ def read_pdf_tables(content: bytes) -> tuple[pd.DataFrame, str]:
 
                 raw_header = [str(cell or "").strip() for cell in rows[0]]
 
-                # Determine if this page is a continuation (same header repeated)
                 is_continuation = (
                     column_header is not None
                     and raw_header == column_header
@@ -328,13 +288,11 @@ def read_pdf_tables(content: bytes) -> tuple[pd.DataFrame, str]:
                 if column_header is None:
                     column_header = raw_header
 
-                # Body rows are everything after the header row
                 body_start = 1 if (column_header == raw_header or not is_continuation) else 0
                 body = rows[body_start:]
                 if not body:
                     continue
 
-                # Pad or truncate rows to match header width
                 ncols = len(column_header)
                 padded_body = [
                     (row + [None] * ncols)[:ncols] for row in body
@@ -367,21 +325,12 @@ def read_pdf_tables(content: bytes) -> tuple[pd.DataFrame, str]:
 
 
 def normalize_frame_columns(frame: pd.DataFrame) -> pd.DataFrame:
-    """Return a copy with all column names normalized to snake_case."""
     normalized = frame.copy()
     normalized.columns = [normalize_column_name(str(col)) for col in normalized.columns]
     return normalized
 
 
 def find_column(columns: list[str], candidates: list[str]) -> str | None:
-    """
-    Find the first matching column.
-
-    Priority:
-    1. Exact match after normalization
-    2. Candidate is a substring of a column name
-    3. Column name is a substring of a candidate
-    """
     for candidate in candidates:
         if candidate in columns:
             return candidate
@@ -407,10 +356,6 @@ def dataframe_to_transactions(
     amount_candidates: list[str],
     type_candidates: list[str],
 ) -> list[ParsedTransaction]:
-    """
-    Convert a bank statement DataFrame (raw or normalized) into ParsedTransaction
-    objects. Handles both split debit/credit columns and single amount+type columns.
-    """
     if frame.empty:
         raise ParserError("Statement contains no rows.")
 
@@ -439,13 +384,11 @@ def dataframe_to_transactions(
             continue
 
         narration = str(row.get(narration_col) or "").strip() if narration_col else ""
-        # Collapse internal newlines that PDF extraction can produce
         narration = " ".join(narration.split())
 
         debit_value = parse_amount(row.get(debit_col)) if debit_col else None
         credit_value = parse_amount(row.get(credit_col)) if credit_col else None
 
-        # If separate debit/credit columns are both empty, try the amount+type pattern
         if amount_col and debit_value is None and credit_value is None:
             amount_value = parse_amount(row.get(amount_col))
             if amount_value is not None:
@@ -499,15 +442,9 @@ def dataframe_to_transactions(
 
 
 class BaseStatementParser(ABC):
-    """Abstract base class for all bank statement parsers."""
-
     bank_name: str = "generic"
 
     def parse(self, filename: str, content: bytes) -> list[ParsedTransaction]:
-        """
-        Entry point: detect file type, extract raw tabular data, then
-        delegate to parse_dataframe() for bank-specific column mapping.
-        """
         extension = Path(filename or "").suffix.lower()
 
         if extension == ".csv":
@@ -525,4 +462,4 @@ class BaseStatementParser(ABC):
 
     @abstractmethod
     def parse_dataframe(self, frame: pd.DataFrame) -> list[ParsedTransaction]:
-        """Convert a bank statement table into normalized transactions."""
+        pass
