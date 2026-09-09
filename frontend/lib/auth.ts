@@ -24,15 +24,6 @@ function setSessionStorageValue(key: string, value: string): boolean {
   }
 }
 
-function getSessionStorageValue(key: string): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.sessionStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
 function removeSessionStorageValue(key: string): void {
   if (typeof window === "undefined") return;
   try {
@@ -40,24 +31,6 @@ function removeSessionStorageValue(key: string): void {
   } catch {
     return;
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isAuthSession(value: unknown): value is AuthSession {
-  if (!isRecord(value)) return false;
-  return (
-    typeof value.user_id === "string" &&
-    typeof value.full_name === "string" &&
-    typeof value.work_email === "string" &&
-    typeof value.organization === "string" &&
-    (value.role === "analyst" || value.role === "admin" || value.role === "owner") &&
-    typeof value.session_token === "string" &&
-    typeof value.expires_in_seconds === "number" &&
-    typeof value.message === "string"
-  );
 }
 
 export function saveAuthSession(session: AuthSession): boolean {
@@ -68,29 +41,6 @@ export function saveAuthSession(session: AuthSession): boolean {
     }
   } catch {}
   return ok;
-}
-
-export function loadAuthSession(): AuthSession | null {
-  const raw = getSessionStorageValue(AUTH_SESSION_KEY);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    return isAuthSession(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-export function clearAuthSession(): void {
-  clearSessionToken();
-}
-
-export function saveSessionToken(token: string): void {
-  try {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(AUTH_TOKEN_KEY, token);
-    }
-  } catch {}
 }
 
 export function loadSessionToken(): string | null {

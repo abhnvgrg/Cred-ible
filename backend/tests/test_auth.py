@@ -441,15 +441,6 @@ def test_borrower_data_endpoints_reject_a_bad_token(client, method, path):
     assert response.status_code in (401, 403)
 
 
-def test_uploading_a_statement_requires_a_session(client):
-    response = client.post(
-        "/signals/derive?signal_type=upi",
-        files={"statement": ("a.csv", b"date,amount\n2025-01-01,100", "text/csv")},
-    )
-
-    assert response.status_code in (401, 403)
-
-
 def test_parsing_a_statement_requires_a_session(client):
     response = client.post(
         "/parse/statement",

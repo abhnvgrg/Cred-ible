@@ -224,16 +224,6 @@ class RiskPredictionResponse(BaseModel):
     model_trained_at_utc: str
 
 
-SignalType = Literal["upi", "gst", "rent", "utilities", "employment"]
-
-
-class StatementDerivationResponse(BaseModel):
-    signal_type: SignalType
-    derived_fields: dict[str, float | int | str | bool]
-    summary: str
-    rows_processed: int = Field(ge=0)
-
-
 from .parse import (  # noqa: E402
     ParsePersonaSet,
     ParsePersonasResponse,

@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from datetime import datetime, timezone
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .agents import get_orchestration_status, run_all_agents
@@ -21,7 +21,6 @@ from .auth import (
     create_session,
     create_user,
     end_session,
-    get_current_user,
     init_db,
     record_login_failure,
     require_admin,
@@ -50,13 +49,10 @@ from .schemas import (
     RegisterRequest,
     RiskPredictionResponse,
     ScoreResponse,
-    SignalType,
-    StatementDerivationResponse,
     TrainModelResponse,
     WhatIfRequest,
     WhatIfResponse,
 )
-from .statement_parser import derive_signals_from_statement
 
 logger = logging.getLogger(__name__)
 
@@ -274,32 +270,6 @@ async def what_if(
     _: dict = Depends(get_current_user),
 ) -> WhatIfResponse:
     return run_what_if_simulation(payload)
-
-
-@app.post("/signals/derive", response_model=StatementDerivationResponse)
-async def derive_statement_signals(
-    signal_type: SignalType,
-    statement: UploadFile = File(...),
-    _: dict = Depends(get_current_user),
-) -> StatementDerivationResponse:
-    try:
-        content = await statement.read()
-        if not content:
-            raise ValueError("Uploaded statement is empty.")
-        derivation = derive_signals_from_statement(
-            signal_type=signal_type,
-            filename=statement.filename or "",
-            content=content,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    return StatementDerivationResponse(
-        signal_type=signal_type,
-        derived_fields=derivation.derived_fields,
-        summary=derivation.summary,
-        rows_processed=derivation.rows_processed,
-    )
 
 
 @app.get("/marketplace/offers", response_model=MarketplaceResponse)

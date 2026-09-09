@@ -381,10 +381,6 @@ export function loadScoreResult(): StoredScoreResult | null {
   return isStoredScoreResultValue(parsed) ? parsed : null;
 }
 
-export function clearScoreResult(): void {
-  removeSessionStorageValue(SCORE_RESULT_KEY);
-}
-
 function isUpperConfidence(value: unknown): value is "HIGH" | "MEDIUM" | "LOW" {
   return value === "HIGH" || value === "MEDIUM" || value === "LOW";
 }
@@ -479,10 +475,6 @@ export function saveParsedStatementResult(result: ParseStatementResult): boolean
 export function loadParsedStatementResult(): ParseStatementResult | null {
   const parsed = parseJson(getSessionStorageValue(PARSED_STATEMENT_KEY));
   return isParseStatementResult(parsed) ? parsed : null;
-}
-
-export function clearParsedStatementResult(): void {
-  removeSessionStorageValue(PARSED_STATEMENT_KEY);
 }
 
 export function isComplianceAgentOutput(
