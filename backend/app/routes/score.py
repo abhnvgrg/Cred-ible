@@ -66,7 +66,7 @@ def _derive_coefficients_from_model() -> dict[str, float]:
             return FEATURE_COEFFICIENTS
 
         buckets: dict[str, float] = {key: 0.0 for key in FEATURE_COEFFICIENTS}
-        for name, importance in zip(feature_names, importances):
+        for name, importance in zip(feature_names, importances, strict=True):
             lowered = str(name).lower()
             if "upi" in lowered and ("txn" in lowered or "transaction" in lowered):
                 buckets["upi_monthly_txn_count"] += float(importance)

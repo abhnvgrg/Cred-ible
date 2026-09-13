@@ -581,9 +581,14 @@ def _load_flat_csv_dataset(dataset_path: Path) -> pd.DataFrame:
         if column in df.columns:
             df[column] = df[column].apply(_yes_no_to_bool)
 
+    credit_scores = (
+        df["credit_score"] if "credit_score" in df.columns else [None] * len(df)
+    )
     df[TARGET_COLUMN] = [
         _risk_from_decision_and_score(decision=value_decision, credit_score=value_score)
-        for value_decision, value_score in zip(df["loan_decision"], df.get("credit_score"))
+        for value_decision, value_score in zip(
+            df["loan_decision"], credit_scores, strict=True
+        )
     ]
     df[TARGET_COLUMN] = df[TARGET_COLUMN].apply(_normalize_risk_label)
 
@@ -797,6 +802,9 @@ def predict_risk(profile: dict[str, Any]) -> tuple[str, dict[str, float], str]:
     predicted_label = str(pipeline.predict(df)[0])
     probabilities = pipeline.predict_proba(df)[0]
     classes = [str(label) for label in pipeline.classes_]
-    probability_map = {label: round(float(prob), 4) for label, prob in zip(classes, probabilities)}
+    probability_map = {
+        label: round(float(prob), 4)
+        for label, prob in zip(classes, probabilities, strict=True)
+    }
 
     return predicted_label, probability_map, trained_at

@@ -14,9 +14,9 @@ from typing import Any, Generator
 
 import bcrypt
 
-DEFAULT_SESSION_TTL_SECONDS = int(os.environ.get("SESSION_TTL_SECONDS", 8 * 60 * 60))
+DEFAULT_SESSION_TTL_SECONDS = int(os.environ.get("SESSION_TTL_SECONDS") or 8 * 60 * 60)
 PASSWORD_RESET_TTL_SECONDS = 60 * 60
-BCRYPT_ROUNDS = int(os.environ.get("BCRYPT_ROUNDS", 12))
+BCRYPT_ROUNDS = int(os.environ.get("BCRYPT_ROUNDS") or 12)
 MIN_PASSWORD_LENGTH = 12
 VALID_ROLES = frozenset({"owner", "admin", "analyst"})
 

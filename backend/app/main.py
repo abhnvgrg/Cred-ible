@@ -4,7 +4,6 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
-from pathlib import Path
 from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, HTTPException

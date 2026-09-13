@@ -173,5 +173,5 @@ def parse_statement_transactions(filename: str, content: bytes) -> ParseDetectio
                 transactions=transactions,
                 warnings=warnings,
             )
-        except ParserError:
-            raise primary_error
+        except ParserError as fallback_error:
+            raise primary_error from fallback_error

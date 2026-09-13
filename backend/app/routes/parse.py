@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 import random
 
@@ -119,7 +119,7 @@ def _field_error(field: str, message: str) -> list[dict[str, str | list[str]]]:
 
 
 def _month_start(months_ago: int) -> date:
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     first = date(year=now.year, month=now.month, day=1)
     month_index = first.month - 1 - months_ago
     year = first.year + (month_index // 12)

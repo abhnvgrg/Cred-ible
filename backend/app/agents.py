@@ -91,7 +91,6 @@ async def income_stability_agent(payload: BorrowerSignalInput) -> AgentScoreOutp
 
     upi_frequency_score = _ratio(upi.transaction_frequency_per_month, 160)
     upi_history_score = _ratio(upi.months_of_history, 24)
-    upi_trend_score = _trend_score(upi.monthly_volume_trend_pct, worst=-30, best=25)
     work_tenure_score = _ratio(employment.months_in_current_work, 60)
     proof_score = _income_proof_score(employment.income_proof_type)
     gst_score = _gst_quality(gst)
@@ -245,7 +244,7 @@ async def compliance_and_fraud_agent(payload: BorrowerSignalInput) -> Compliance
     flags: list[str] = []
     severity = 0
 
-    sensitive_keys = {k.strip().lower() for k in payload.declared_attributes.keys()}
+    sensitive_keys = {k.strip().lower() for k in payload.declared_attributes}
     prohibited_found = sorted(PROHIBITED_SIGNALS.intersection(sensitive_keys))
     if prohibited_found:
         severity += 5
