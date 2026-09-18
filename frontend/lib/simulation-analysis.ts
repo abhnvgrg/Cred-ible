@@ -33,16 +33,24 @@ export type SimulationAnalysisJson = {
     flags: string[];
     missing_months: string[];
     parallel_balance_tracks: boolean;
+    balance_track_ranges: string[];
     anomalous_income_months: string[];
+    raw_monthly_income_avg: number;
+    corrected_monthly_income_avg: number;
     rent_payments_found: boolean;
     utility_consistency: "consistent" | "inconsistent";
+    utility_providers: string[];
+    months_without_utility_payments: string[];
   };
   agents: {
     income: {
+      income_type: string;
       raw_monthly_avg: number;
       corrected_monthly_avg: number;
       regularity: "HIGH" | "MEDIUM" | "LOW";
       trend: "IMPROVING" | "STABLE" | "DECLINING";
+      raw_score_before_anomaly_correction: number;
+      corrected_score_after_anomaly_correction: number;
       score: number;
       confidence: "HIGH" | "MEDIUM" | "LOW";
       reasoning: string;
@@ -51,6 +59,9 @@ export type SimulationAnalysisJson = {
       bills_found: string[];
       emis_found: boolean;
       rent_found: boolean;
+      confirmed_payments_made: number;
+      expected_payments: number;
+      limitation_note: string;
       score: number;
       confidence: "HIGH" | "MEDIUM" | "LOW";
       reasoning: string;
@@ -117,6 +128,11 @@ function buildConflictList(
   lifestyleScore: number
 ): string[] {
   const conflicts: string[] = [];
+  if (audit.parallel_balance_tracks) {
+    conflicts.push(
+      "CRITICAL — Parallel balance tracks detected. Scoring should be treated as blocked until lender override confirms the statement source is valid."
+    );
+  }
   if (Math.abs(incomeScore - repaymentScore) >= 20) {
     const base = `Income agent scores ${incomeScore}/100 while repayment agent scores ${repaymentScore}/100. These signals conflict.`;
     if (audit.score < 70) {
@@ -196,16 +212,24 @@ export function buildSimulationAnalysis(
       flags: audit.flags,
       missing_months: audit.missing_months,
       parallel_balance_tracks: audit.parallel_balance_tracks,
+      balance_track_ranges: audit.balance_track_ranges,
       anomalous_income_months: audit.anomalous_income_months,
+      raw_monthly_income_avg: Math.round(audit.raw_monthly_income_avg),
+      corrected_monthly_income_avg: Math.round(audit.corrected_monthly_income_avg),
       rent_payments_found: audit.rent_payments_found,
       utility_consistency: audit.utility_consistency,
+      utility_providers: audit.utility_providers,
+      months_without_utility_payments: audit.months_without_utility_payments,
     },
     agents: {
       income: {
+        income_type: audit.income.income_type,
         raw_monthly_avg: Math.round(audit.income.raw_monthly_avg),
         corrected_monthly_avg: Math.round(audit.income.corrected_monthly_avg),
         regularity: audit.income.regularity,
         trend: audit.income.trend,
+        raw_score_before_anomaly_correction: audit.income.raw_score,
+        corrected_score_after_anomaly_correction: audit.income.corrected_score,
         score: incomeScore,
         confidence: audit.score < 65 ? "LOW" : audit.income.confidence,
         reasoning: `${audit.income.reasoning} Simulated income component is now ${incomeScore}/100.`,
@@ -214,6 +238,10 @@ export function buildSimulationAnalysis(
         bills_found: audit.repayment.bills_found,
         emis_found: audit.repayment.emis_found,
         rent_found: audit.repayment.rent_found,
+        confirmed_payments_made: audit.repayment.confirmed_payments_made,
+        expected_payments: audit.repayment.expected_payments,
+        limitation_note:
+          "On-time means payment appeared in the same calendar month; exact bill due dates cannot be confirmed from a bank statement alone.",
         score: repaymentScore,
         confidence: audit.score < 65 ? "LOW" : audit.repayment.confidence,
         reasoning: `${audit.repayment.reasoning} Simulated repayment component is now ${repaymentScore}/100.`,

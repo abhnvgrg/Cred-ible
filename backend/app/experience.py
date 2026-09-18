@@ -1,20 +1,16 @@
 from __future__ import annotations
 
 import time
-from secrets import token_urlsafe
-from uuid import uuid4
+from typing import Any
 
 from . import storage
 
 from .resolver import COMPONENT_WEIGHTS
 from .schemas import (
     AgentBreakdown,
-    AuthResponse,
     ConfidenceLevel,
-    LoginRequest,
     MarketplaceOffer,
     MarketplaceResponse,
-    RegisterRequest,
     WhatIfRecommendation,
     WhatIfRequest,
     WhatIfResponse,
@@ -39,99 +35,6 @@ def _primary_workspace(user: dict) -> tuple[str, str]:
     primary = memberships[0]
     return primary.get("name", ""), primary.get("role", "analyst")
 
-
-def authenticate_user(payload: LoginRequest) -> AuthResponse:
-    """
-    Authenticate a user based on email and password.
-
-    Args:
-        payload: The login request containing email and password.
-
-    Returns:
-        An AuthResponse containing user details and a session token.
-
-    Raises:
-        ValueError: If email is invalid or credentials do not match.
-    """
-    email = payload.email.strip().lower()
-
-    if not _is_email_like(email):
-        raise ValueError("Please provide a valid work email.")
-
-    user = storage.get_user_by_email(email)
-    if user is None or not storage.verify_password(user, payload.password):
-        raise ValueError("Invalid email or password.")
-
-    session = storage.create_session(user_id=user.user_id)
-    organization, role = _primary_workspace(user.__dict__) # storage.User is a dataclass, _primary_workspace expects a dict
-
-    return AuthResponse(
-        user_id=user.user_id,
-        full_name=user.full_name,
-        work_email=user.work_email,
-        organization=organization,
-        role=role,
-        session_token=session.session_token,
-        expires_in_seconds=storage.DEFAULT_SESSION_TTL_SECONDS,
-        message="Signed in successfully.",
-    )
-
-
-def register_user(payload: RegisterRequest) -> AuthResponse:
-    """
-    Register a new user and create a workspace account.
-
-    Args:
-        payload: The registration request containing user and organization details.
-
-    Returns:
-        An AuthResponse containing user details and a session token.
-
-    Raises:
-        ValueError: If validation fails or the user already exists.
-    """
-    full_name = payload.full_name.strip()
-    work_email = payload.work_email.strip().lower()
-    organization = payload.organization.strip()
-
-    if not full_name:
-        raise ValueError("Full name is required.")
-
-    if not organization:
-        raise ValueError("Organization is required.")
-
-    if not _is_email_like(work_email):
-        raise ValueError("Please provide a valid work email.")
-
-    if payload.password != payload.confirm_password:
-        raise ValueError("Password and confirm password must match.")
-
-    if len(payload.password) < 8:
-        raise ValueError("Password must be at least 8 characters long.")
-
-    try:
-        user = storage.create_user(
-            full_name=full_name,
-            work_email=work_email,
-            organization=organization,
-            password=payload.password,
-            role="admin",
-        )
-    except ValueError as exc:
-        raise ValueError(str(exc)) from exc
-
-    session = storage.create_session(user_id=user.user_id)
-
-    return AuthResponse(
-        user_id=user.user_id,
-        full_name=user.full_name,
-        work_email=user.work_email,
-        organization=organization,
-        role="admin",
-        session_token=session.session_token,
-        expires_in_seconds=storage.DEFAULT_SESSION_TTL_SECONDS,
-        message="Workspace account created successfully.",
-    )
 
 def _clamp_score(value: float) -> int:
     return max(300, min(850, int(round(value))))
@@ -215,7 +118,7 @@ def _shift_gain(shift: int, base_component: int, max_gain: float) -> float:
         return 0.0
     normalized_shift = min(1.0, shift / 20)
     headroom = max(0.0, min(1.0, (100 - base_component) / 100))
-    return max_gain * normalized_shift * (0.3 + (0.7 * headroom))
+    return max_gain * normalized_shift * (0.4 + (0.6 * headroom))
 
 
 def _risk_level_from_score(score: int) -> str:
@@ -227,15 +130,6 @@ def _risk_level_from_score(score: int) -> str:
 
 
 def run_what_if_simulation(payload: WhatIfRequest) -> WhatIfResponse:
-    """
-    Execute a what-if simulation to project credit score changes.
-
-    Args:
-        payload: The simulation request containing base score and shifts.
-
-    Returns:
-        A WhatIfResponse with projected score, breakdown, and recommendations.
-    """
     started = time.perf_counter()
     base_income, base_repayment, base_lifestyle = _derive_base_breakdown(payload)
     base_breakdown_was_derived = (
@@ -244,12 +138,12 @@ def run_what_if_simulation(payload: WhatIfRequest) -> WhatIfResponse:
         or payload.base_lifestyle_score is None
     )
 
-    income_gain = _shift_gain(payload.income_shift, base_income, max_gain=18.0)
-    compliance_repayment_gain = _shift_gain(payload.compliance_boost, base_repayment, max_gain=12.0)
-    compliance_lifestyle_gain = _shift_gain(payload.compliance_boost, base_lifestyle, max_gain=8.0)
-    debt_repayment_gain = _shift_gain(payload.debt_reduction, base_repayment, max_gain=20.0)
-    debt_income_gain = _shift_gain(payload.debt_reduction, base_income, max_gain=4.0)
-    debt_lifestyle_gain = _shift_gain(payload.debt_reduction, base_lifestyle, max_gain=3.0)
+    income_gain = _shift_gain(payload.income_shift, base_income, max_gain=30.0)
+    compliance_repayment_gain = _shift_gain(payload.compliance_boost, base_repayment, max_gain=25.0)
+    compliance_lifestyle_gain = _shift_gain(payload.compliance_boost, base_lifestyle, max_gain=15.0)
+    debt_repayment_gain = _shift_gain(payload.debt_reduction, base_repayment, max_gain=35.0)
+    debt_income_gain = _shift_gain(payload.debt_reduction, base_income, max_gain=12.0)
+    debt_lifestyle_gain = _shift_gain(payload.debt_reduction, base_lifestyle, max_gain=8.0)
 
     projected_income = _clamp_component(base_income + income_gain + debt_income_gain)
     projected_repayment = _clamp_component(base_repayment + compliance_repayment_gain + debt_repayment_gain)
@@ -269,8 +163,6 @@ def run_what_if_simulation(payload: WhatIfRequest) -> WhatIfResponse:
 
     if payload.income_shift == 0 and payload.compliance_boost == 0 and payload.debt_reduction == 0:
         projected_score = payload.base_score
-    else:
-        projected_score = max(payload.base_score, projected_score)
 
     delta = projected_score - payload.base_score
     confidence = _scenario_confidence(payload, base_breakdown_was_derived, baseline_penalty=base_penalty)
@@ -361,20 +253,9 @@ def _match(score: int, base: int, index: int) -> int:
 
 
 def get_marketplace_offers(score: int, user: storage.User | dict[str, Any] | None = None) -> MarketplaceResponse:
-    """
-    Retrieve personalized marketplace offers based on a credit score.
-
-    Args:
-        score: The credit score to use for matching.
-        user: The optional user object (storage.User or dict) to personalize offers.
-
-    Returns:
-        A MarketplaceResponse containing a list of eligible offers.
-    """
     normalized_score = _clamp_score(score)
     rate_shift = _risk_rate_adjustment(normalized_score)
 
-    # Handle optional user, User dataclass, and dict
     if user is None:
         organization_name, role = "Guest Workspace", "analyst"
     else:
@@ -430,8 +311,8 @@ def get_marketplace_offers(score: int, user: storage.User | dict[str, Any] | Non
             ai_match_pct=_match(normalized_score, offer["ai_match_pct"], idx),
             rationale=offer["rationale"],
             requires_additional_docs=offer["requires_additional_docs"],
-            organization=organization_name,  # Now defined!
-            role=role,  # Now defined!
+            organization=organization_name,
+            role=role,
         )
         offers.append(marketplace_offer)
 

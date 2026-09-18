@@ -116,16 +116,55 @@ def _read_sheet_table(dataset_path: Path, sheet_name: str, header_key: str) -> p
     return table
 
 
+def _is_contained(candidate: Path, root: Path) -> bool:
+    try:
+        candidate.resolve().relative_to(root.resolve())
+    except ValueError:
+        return False
+    return True
+
+
+def available_datasets() -> dict[str, Path]:
+    registry: dict[str, Path] = {}
+    for candidate in sorted(PROJECT_ROOT.glob("*.csv")) + sorted(PROJECT_ROOT.glob("*.xlsx")):
+        if candidate.is_file() and not candidate.name.startswith("~$"):
+            registry[candidate.name] = candidate
+    return registry
+
+
+def resolve_dataset_key(dataset_key: str | None = None) -> Path:
+    registry = available_datasets()
+    if dataset_key is None:
+        return resolve_dataset_path(None)
+
+    resolved = registry.get(dataset_key)
+    if resolved is None:
+        names = ", ".join(sorted(registry)) or "none available"
+        raise ModelTrainingError(
+            f"Unknown dataset '{dataset_key}'. Available datasets: {names}."
+        )
+    return resolved
+
+
 def resolve_dataset_path(dataset_path: Path | None = None) -> Path:
     if dataset_path is not None:
-        resolved = dataset_path if dataset_path.is_absolute() else PROJECT_ROOT / dataset_path
-        if resolved.exists():
-            return resolved
-        raise ModelTrainingError(f"Dataset file not found at '{resolved}'.")
+        for base in (Path.cwd(), PROJECT_ROOT):
+            resolved = dataset_path if dataset_path.is_absolute() else base / dataset_path
+            if resolved.exists() and _is_contained(resolved, PROJECT_ROOT):
+                return resolved
+            if dataset_path.is_absolute():
+                break
+        raise ModelTrainingError(
+            f"Dataset '{dataset_path.name}' not found under the project root."
+        )
 
     for candidate in DEFAULT_DATASET_CANDIDATES:
         if candidate.exists():
             return candidate
+
+    discovered = available_datasets()
+    if discovered:
+        return next(iter(discovered.values()))
 
     names = ", ".join(path.name for path in DEFAULT_DATASET_CANDIDATES)
     raise ModelTrainingError(f"No supported dataset file found. Expected one of: {names}.")
@@ -489,7 +528,6 @@ def _load_flat_csv_dataset(dataset_path: Path) -> pd.DataFrame:
             f"CSV dataset '{dataset_path.name}' is missing required columns: {', '.join(missing)}."
         )
 
-    # Keep model-serving compatibility with BorrowerProfileInput by exposing the baseline profile fields.
     df["occupation"] = df["employment_type"].astype(str).str.strip()
     df["sector"] = df.get("loan_purpose", df["employment_type"]).astype(str).str.strip()
     df["city"] = df["state"].astype(str).str.strip()
@@ -543,9 +581,14 @@ def _load_flat_csv_dataset(dataset_path: Path) -> pd.DataFrame:
         if column in df.columns:
             df[column] = df[column].apply(_yes_no_to_bool)
 
+    credit_scores = (
+        df["credit_score"] if "credit_score" in df.columns else [None] * len(df)
+    )
     df[TARGET_COLUMN] = [
         _risk_from_decision_and_score(decision=value_decision, credit_score=value_score)
-        for value_decision, value_score in zip(df["loan_decision"], df.get("credit_score"))
+        for value_decision, value_score in zip(
+            df["loan_decision"], credit_scores, strict=True
+        )
     ]
     df[TARGET_COLUMN] = df[TARGET_COLUMN].apply(_normalize_risk_label)
 
@@ -759,6 +802,9 @@ def predict_risk(profile: dict[str, Any]) -> tuple[str, dict[str, float], str]:
     predicted_label = str(pipeline.predict(df)[0])
     probabilities = pipeline.predict_proba(df)[0]
     classes = [str(label) for label in pipeline.classes_]
-    probability_map = {label: round(float(prob), 4) for label, prob in zip(classes, probabilities)}
+    probability_map = {
+        label: round(float(prob), 4)
+        for label, prob in zip(classes, probabilities, strict=True)
+    }
 
     return predicted_label, probability_map, trained_at

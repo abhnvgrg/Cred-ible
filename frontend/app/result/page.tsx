@@ -2,19 +2,22 @@
 
 import { SurfaceCard } from "@/components/ui/primitives";
 import type { StoredScoreResult } from "@/lib/scoring";
-import { loadScoreResult } from "@/lib/scoring";
+import { loadScoreResult, loadParsedStatementResult } from "@/lib/scoring";
 import { useEffect, useState } from "react";
 
-// Dashboard Components
 import { SystemsOverview } from "@/components/dashboard/SystemsOverview";
 import { ScoreVisualizer } from "@/components/dashboard/ScoreVisualizer";
 import { ScoreBreakdown } from "@/components/dashboard/ScoreBreakdown";
 import { ScoreInsights } from "@/components/dashboard/ScoreInsights";
 import { FinancialFootprint } from "@/components/dashboard/FinancialFootprint";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { SimulationAuditDisplay } from "@/components/SimulationAuditDisplay";
+import { buildSimulationAnalysis, type SimulationAnalysisJson } from "@/lib/simulation-analysis";
+import type { WhatIfSimulationResponse } from "@/lib/simulation-analysis";
 
 export default function ResultPage() {
   const [storedResult, setStoredResult] = useState<StoredScoreResult | null>(null);
+  const [simulationAnalysis, setSimulationAnalysis] = useState<SimulationAnalysisJson | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,6 +27,19 @@ export default function ResultPage() {
       return;
     }
     setStoredResult(nextResult);
+
+    const parsedStatement = loadParsedStatementResult();
+    if (parsedStatement) {
+      const simulationDataStr = typeof window !== "undefined" ? window.sessionStorage.getItem("cred-ible:simulation-result:v1") : null;
+      if (simulationDataStr) {
+        try {
+          const simulationResult = JSON.parse(simulationDataStr) as WhatIfSimulationResponse;
+          const nextAnalysis = buildSimulationAnalysis(parsedStatement, nextResult, simulationResult);
+          setSimulationAnalysis(nextAnalysis.json);
+        } catch {
+        }
+      }
+    }
   }, []);
 
   if (loadError) {
@@ -66,6 +82,13 @@ export default function ResultPage() {
         <FinancialFootprint response={response} />
         <RecentActivity response={response} />
       </div>
+
+      {/* Simulation Audit - if available */}
+      {simulationAnalysis && (
+        <div className="mt-6">
+          <SimulationAuditDisplay analysis={simulationAnalysis} />
+        </div>
+      )}
     </div>
   );
 }

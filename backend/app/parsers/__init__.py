@@ -21,13 +21,6 @@ class StatementParseResult:
 
 
 def parse_statement_file(filename: str, content: bytes, borrower_name: str) -> StatementParseResult:
-    """
-    Top-level orchestrator: detect bank → parse transactions → derive signals.
-
-    This is the single function called by the /parse/statement route handler.
-    It never raises unhandled exceptions — ParserError and ValueError bubble up
-    to the route handler which converts them to 422 responses with field-level detail.
-    """
     detection: ParseDetectionResult = parse_statement_transactions(
         filename=filename,
         content=content,

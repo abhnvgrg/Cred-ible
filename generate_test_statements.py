@@ -1,21 +1,3 @@
-"""
-Synthetic Bank Statement Generator for Cred-ible
-=================================================
-Produces realistic bank statements in PDF and CSV for 4 test personas:
-
-  Raju  — street vendor, high UPI, irregular ₹18k–35k, no EMIs
-  Priya — freelancer, lumpy ₹45k–90k, occasional missed utility
-  Arjun — gig worker, daily small credits ₹22k–38k, weekly recharges
-  Meena — micro-entrepreneur, mixed UPI+NEFT ₹55k–1.2L, 2 EMIs, GST
-
-Usage:
-    python generate_test_statements.py
-    → writes 8 files into generated_statements/
-
-Statement format rules:
-  - PDF layouts are generated with reportlab using SBI/HDFC-style table headers.
-  - CSV exports use actual SBI/HDFC export headers.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -81,8 +63,6 @@ def _append(rows: list[TransactionRow], tx_date: date, narration: str, debit: in
                                debit=max(0, debit), credit=max(0, credit), balance=bal))
 
 
-# ── Persona generators ────────────────────────────────────────────────────
-
 def _gen_raju(rows: list[TransactionRow], ms: date, rng: random.Random) -> None:
     for day in range(1, 29):
         td = ms + timedelta(days=day - 1)
@@ -142,8 +122,6 @@ def generate_transactions(persona: PersonaConfig, months: int = 6) -> list[Trans
     return rows
 
 
-# ── Bank-specific DataFrame formatters ────────────────────────────────────
-
 def to_sbi_frame(rows: list[TransactionRow]) -> pd.DataFrame:
     return pd.DataFrame({
         "Txn Date": [r.tx_date.strftime("%d/%m/%Y") for r in rows],
@@ -177,8 +155,6 @@ _BANK_TITLES = {
 def _to_bank_frame(persona: PersonaConfig, rows: list[TransactionRow]) -> pd.DataFrame:
     return _FRAME_BUILDERS[persona.statement_format](rows)
 
-
-# ── File writers ──────────────────────────────────────────────────────────
 
 def write_csv(persona: PersonaConfig, rows: list[TransactionRow], out_dir: Path) -> Path:
     frame = _to_bank_frame(persona, rows)

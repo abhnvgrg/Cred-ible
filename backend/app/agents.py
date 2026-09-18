@@ -16,7 +16,6 @@ LLM_TRUE_VALUES = {"1", "true", "yes", "on"}
 DEFAULT_LLM_ENDPOINT = "https://api.openai.com/v1/chat/completions"
 DEFAULT_LLM_MODEL = "gpt-4.1-mini"
 DEFAULT_LLM_TIMEOUT_SECONDS = 14
-LLM_FALLBACK_FLAG_SUFFIX = "LLM specialist unavailable; rule-based specialist fallback used."
 
 
 def _clamp01(value: float) -> float:
@@ -92,7 +91,6 @@ async def income_stability_agent(payload: BorrowerSignalInput) -> AgentScoreOutp
 
     upi_frequency_score = _ratio(upi.transaction_frequency_per_month, 160)
     upi_history_score = _ratio(upi.months_of_history, 24)
-    upi_trend_score = _trend_score(upi.monthly_volume_trend_pct, worst=-30, best=25)
     work_tenure_score = _ratio(employment.months_in_current_work, 60)
     proof_score = _income_proof_score(employment.income_proof_type)
     gst_score = _gst_quality(gst)
@@ -246,7 +244,7 @@ async def compliance_and_fraud_agent(payload: BorrowerSignalInput) -> Compliance
     flags: list[str] = []
     severity = 0
 
-    sensitive_keys = {k.strip().lower() for k in payload.declared_attributes.keys()}
+    sensitive_keys = {k.strip().lower() for k in payload.declared_attributes}
     prohibited_found = sorted(PROHIBITED_SIGNALS.intersection(sensitive_keys))
     if prohibited_found:
         severity += 5
@@ -295,6 +293,11 @@ async def compliance_and_fraud_agent(payload: BorrowerSignalInput) -> Compliance
             "Higher severity indicates stronger review requirement."
         ),
     )
+
+
+FALLBACK_FLAG_TEMPLATE = (
+    "{agent}: LLM scoring unavailable, deterministic rules used instead"
+)
 
 
 def _env_enabled(name: str) -> bool:
@@ -523,13 +526,10 @@ def _append_fallback_flag(
     output: AgentScoreOutput | ComplianceAgentOutput,
     agent_name: str,
 ) -> AgentScoreOutput | ComplianceAgentOutput:
-    fallback_flag = f"{agent_name}: {LLM_FALLBACK_FLAG_SUFFIX}"
-    if fallback_flag in output.flags:
+    note = FALLBACK_FLAG_TEMPLATE.format(agent=agent_name)
+    if note in output.flags:
         return output
-    updated_flags = [*output.flags, fallback_flag]
-    if isinstance(output, AgentScoreOutput):
-        return output.model_copy(update={"flags": updated_flags})
-    return output.model_copy(update={"flags": updated_flags})
+    return output.model_copy(update={"flags": [*output.flags, note]})
 
 
 async def _run_scoring_agent_with_fallback(

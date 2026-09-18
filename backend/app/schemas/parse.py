@@ -17,11 +17,6 @@ ParseEmploymentType = Literal["salaried", "freelance", "self_employed"]
 
 
 class ParsedSignals(BaseModel):
-    """
-    The 14 derived signals expected by the downstream agent pipeline.
-    All field names are contract-fixed — do not rename.
-    """
-
     upi_monthly_txn_count: int = Field(
         ge=0,
         description="Average count of UPI narrations per month",
@@ -78,8 +73,6 @@ class ParsedSignals(BaseModel):
 
 
 class ParseRequest(BaseModel):
-    """Fields submitted alongside the uploaded statement file."""
-
     borrower_name: str = Field(min_length=1, max_length=100)
     employment_type: ParseEmploymentType
     gst_applicable: bool
@@ -135,8 +128,6 @@ class DataQualityAuditResponse(BaseModel):
 
 
 class ParseResponse(BaseModel):
-    """Response from POST /parse/statement."""
-
     parsed_signals: ParsedSignals
     detected_bank: str
     statement_months: int = Field(ge=0)
@@ -149,8 +140,6 @@ class ParseResponse(BaseModel):
 
 
 class ParsePersonaSet(BaseModel):
-    """One demo persona's metadata + pre-computed parse response."""
-
     borrower_name: str
     employment_type: ParseEmploymentType
     gst_applicable: bool
@@ -159,6 +148,4 @@ class ParsePersonaSet(BaseModel):
 
 
 class ParsePersonasResponse(BaseModel):
-    """Response from GET /parse/personas."""
-
     personas: list[ParsePersonaSet]

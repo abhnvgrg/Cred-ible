@@ -39,7 +39,7 @@ class HDFCStatementParser(BaseStatementParser):
     ]
     _DEBIT_COLS = [
         "withdrawal_amt",
-        "withdrawal_amt_",       # HDFC PDF sometimes appends a trailing dot
+        "withdrawal_amt_",
         "withdrawal",
         "debit",
         "debit_amount",

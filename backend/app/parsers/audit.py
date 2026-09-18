@@ -287,9 +287,12 @@ def audit_statement_transactions(transactions: list[ParsedTransaction], borrower
     months = pd.period_range(frame["month"].min(), frame["month"].max(), freq="M")
     month_labels = [_month_label(period) for period in months]
     monthly_credit = frame.groupby("month")["credit"].sum().reindex(months, fill_value=0)
-    monthly_debit = frame.groupby("month")["debit"].sum().reindex(months, fill_value=0)
     monthly_counts = frame.groupby("month").size().reindex(months, fill_value=0)
-    missing_months = [label for label, count in zip(month_labels, monthly_counts.tolist()) if count == 0]
+    missing_months = [
+        label
+        for label, count in zip(month_labels, monthly_counts.tolist(), strict=True)
+        if count == 0
+    ]
     if missing_months:
         flags.append(f"WARNING — MISSING MONTH GAP. Missing months: {', '.join(missing_months)}")
 

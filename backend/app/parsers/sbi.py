@@ -20,10 +20,6 @@ from .base import BaseStatementParser, ParsedTransaction, dataframe_to_transacti
 class SBIStatementParser(BaseStatementParser):
     bank_name = "sbi"
 
-    # ------------------------------------------------------------------
-    # Column aliases — most-specific first so find_column() picks the
-    # exact SBI name before falling back to generics.
-    # ------------------------------------------------------------------
     _DATE_COLS = [
         "txn_date",
         "transaction_date",

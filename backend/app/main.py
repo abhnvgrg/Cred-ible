@@ -1,23 +1,39 @@
 from __future__ import annotations
 
+import logging
 import os
 import time
-from pathlib import Path
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .agents import get_orchestration_status, run_all_agents
-from .experience import (
-    authenticate_user,
-    get_marketplace_offers,
-    register_user,
-    run_what_if_simulation,
-)
 from . import storage
+from .auth import (
+    AuthError,
+    authenticate,
+    get_current_user,
+    check_login_allowed,
+    clear_login_failures,
+    create_session,
+    create_user,
+    end_session,
+    init_db,
+    record_login_failure,
+    require_admin,
+)
+from .experience import get_marketplace_offers, run_what_if_simulation
 from .fixtures import load_personas
-from .ml_model import ModelTrainingError, model_is_trained, predict_risk, train_model
+from .ml_model import (
+    ModelTrainingError,
+    available_datasets,
+    model_is_trained,
+    predict_risk,
+    resolve_dataset_key,
+    train_model,
+)
 from .routes.parse import router as parse_router
 from .routes.score import router as score_router
 from .resolver import resolve_scores
@@ -27,16 +43,22 @@ from .schemas import (
     BorrowerSignalInput,
     LoginRequest,
     MarketplaceResponse,
+    PasswordResetConfirm,
+    PasswordResetRequest,
     RegisterRequest,
     RiskPredictionResponse,
     ScoreResponse,
-    SignalType,
-    StatementDerivationResponse,
     TrainModelResponse,
     WhatIfRequest,
     WhatIfResponse,
 )
-from .statement_parser import derive_signals_from_statement
+
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    yield
 
 
 def _seconds_until_expiry(expires_at_utc: str) -> int:
@@ -46,16 +68,13 @@ def _seconds_until_expiry(expires_at_utc: str) -> int:
     remaining = int((expires_at - datetime.now(timezone.utc)).total_seconds())
     return max(1, remaining)
 
+
 app = FastAPI(
     title="Cred-ible Scoring API",
     version="0.1.0",
     description="Dynamic alternative credit scoring API for credit-invisible borrowers.",
+    lifespan=lifespan,
 )
-
-@app.on_event("startup")
-async def startup_event():
-    storage.init_db()
-    print("Database initialized")
 
 DEFAULT_ALLOWED_ORIGINS = [
     "https://cred-ible.vercel.app",
@@ -121,7 +140,10 @@ async def list_personas() -> dict[str, list[dict[str, str]]]:
 
 
 @app.post("/score", response_model=ScoreResponse)
-async def score_borrower(payload: BorrowerSignalInput) -> ScoreResponse:
+async def score_borrower(
+    payload: BorrowerSignalInput,
+    _: dict = Depends(get_current_user),
+) -> ScoreResponse:
     started = time.perf_counter()
     agent_outputs = await run_all_agents(payload)
     processing_time_ms = int((time.perf_counter() - started) * 1000)
@@ -144,114 +166,109 @@ async def score_demo_persona(persona_id: str) -> ScoreResponse:
     return await score_borrower(persona)
 
 
+def _auth_response(user: dict, message: str, token: str, ttl: int) -> AuthResponse:
+    return AuthResponse(
+        user_id=user["user_id"],
+        full_name=user["full_name"],
+        work_email=user["work_email"],
+        organization=user["organization"],
+        role=user["role"],
+        session_token=token,
+        expires_in_seconds=ttl,
+        message=message,
+    )
+
+
 @app.post("/auth/login", response_model=AuthResponse)
 async def login(payload: LoginRequest) -> AuthResponse:
-    try:
-        return authenticate_user(payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    key = payload.email.strip().lower()
+    check_login_allowed(key)
+
+    user = authenticate(payload.email, payload.password)
+    if user is None:
+        record_login_failure(key)
+        raise HTTPException(status_code=401, detail="Incorrect email or password.")
+
+    clear_login_failures(key)
+    token, ttl = create_session(user["user_id"])
+    return _auth_response(user, "Signed in successfully.", token, ttl)
 
 
-@app.post("/auth/register", response_model=AuthResponse)
+@app.post("/auth/register", response_model=AuthResponse, status_code=201)
 async def register(payload: RegisterRequest) -> AuthResponse:
+    if payload.password != payload.confirm_password:
+        raise HTTPException(
+            status_code=400, detail="Password and confirm password must match."
+        )
     try:
-        return register_user(payload)
-    except ValueError as exc:
+        user = create_user(
+            email=payload.work_email,
+            password=payload.password,
+            full_name=payload.full_name,
+            organization=payload.organization,
+        )
+    except AuthError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    token, ttl = create_session(user["user_id"])
+    return _auth_response(user, "Workspace account created successfully.", token, ttl)
 
 
 @app.get("/auth/me", response_model=AuthResponse)
-async def who_am_i(authorization: str | None = Header(default=None)) -> AuthResponse:
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Missing Authorization header")
-
-    scheme, _, token = authorization.partition(" ")
-    if scheme.lower() != "bearer" or not token.strip():
-        raise HTTPException(status_code=401, detail="Expected 'Authorization: Bearer <token>'")
-
-    s = storage.get_session(token.strip())
-    if not s:
-        raise HTTPException(status_code=401, detail="Invalid session")
-
-    user = storage.get_user_by_id(s["user_id"])
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    organizations = user.get("organizations") or []
-    primary_org = organizations[0] if organizations else {"name": "", "role": "analyst"}
-
-    return AuthResponse(
-        user_id=user["user_id"],
-        full_name=user.get("full_name", ""),
-        work_email=user.get("work_email", ""),
-        organization=primary_org.get("name", ""),
-        role=primary_org.get("role", "analyst"),
-        session_token=s["session_token"],
-        expires_in_seconds=_seconds_until_expiry(s["expires_at_utc"]),
-        message="Session active",
+async def who_am_i(user: dict = Depends(get_current_user)) -> AuthResponse:
+    return _auth_response(
+        user,
+        "Session active.",
+        user["session_token"],
+        _seconds_until_expiry(user["expires_at_utc"]),
     )
 
 
 @app.post("/auth/logout")
-async def logout(authorization: str | None = Header(default=None)) -> dict:
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Missing Authorization header")
-
-    scheme, _, token = authorization.partition(" ")
-    if scheme.lower() != "bearer" or not token.strip():
-        raise HTTPException(status_code=401, detail="Expected 'Authorization: Bearer <token>'")
-
-    storage.delete_session(token.strip())
-    return {"message": "Logged out"}
+async def logout(user: dict = Depends(get_current_user)) -> dict:
+    end_session(user["session_token"])
+    return {"message": "Signed out."}
 
 
 @app.post("/auth/password-reset/request")
-async def password_reset_request(work_email: str) -> dict:
-    if not work_email:
-        raise HTTPException(status_code=400, detail="Missing work_email")
-    token = storage.create_password_reset(work_email)
-    # In real app we'd email the token. For demo return it.
-    return {"message": "Password reset token created", "token": token}
+async def password_reset_request(payload: PasswordResetRequest) -> dict:
+    try:
+        token = storage.create_password_reset(payload.work_email)
+    except AuthError:
+        token = None
+
+    if token is not None and os.getenv("CREDIBLE_ENV", "development").lower() not in {
+        "prod",
+        "production",
+    }:
+        logger.info("Password reset token for %s: %s", payload.work_email, token)
+
+    return {
+        "message": (
+            "If an account exists for that address, a reset link has been sent."
+        )
+    }
 
 
 @app.post("/auth/password-reset/confirm")
-async def password_reset_confirm(token: str, new_password: str) -> dict:
-    if not token or not new_password:
-        raise HTTPException(status_code=400, detail="Missing token or password")
-    ok = storage.consume_password_reset(token, new_password)
+async def password_reset_confirm(payload: PasswordResetConfirm) -> dict:
+    try:
+        ok = storage.consume_password_reset(payload.token, payload.new_password)
+    except AuthError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not ok:
-        raise HTTPException(status_code=400, detail="Invalid token")
-    return {"message": "Password updated"}
+        raise HTTPException(
+            status_code=400, detail="That reset link is invalid or has expired."
+        )
+    return {"message": "Password updated. Please sign in again."}
 
 
 @app.post("/simulate/what-if", response_model=WhatIfResponse)
-async def what_if(payload: WhatIfRequest) -> WhatIfResponse:
+async def what_if(
+    payload: WhatIfRequest,
+    _: dict = Depends(get_current_user),
+) -> WhatIfResponse:
     return run_what_if_simulation(payload)
-
-
-@app.post("/signals/derive", response_model=StatementDerivationResponse)
-async def derive_statement_signals(
-    signal_type: SignalType,
-    statement: UploadFile = File(...),
-) -> StatementDerivationResponse:
-    try:
-        content = await statement.read()
-        if not content:
-            raise ValueError("Uploaded statement is empty.")
-        derivation = derive_signals_from_statement(
-            signal_type=signal_type,
-            filename=statement.filename or "",
-            content=content,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    return StatementDerivationResponse(
-        signal_type=signal_type,
-        derived_fields=derivation.derived_fields,
-        summary=derivation.summary,
-        rows_processed=derivation.rows_processed,
-    )
 
 
 @app.get("/marketplace/offers", response_model=MarketplaceResponse)
@@ -264,10 +281,18 @@ async def model_status() -> dict[str, bool]:
     return {"trained": model_is_trained()}
 
 
+@app.get("/model/datasets")
+async def list_trainable_datasets(_: dict = Depends(require_admin)) -> dict:
+    return {"datasets": sorted(available_datasets())}
+
+
 @app.post("/model/train", response_model=TrainModelResponse)
-async def train_credit_model(dataset_file: str | None = None) -> TrainModelResponse:
+async def train_credit_model(
+    dataset: str | None = None,
+    _: dict = Depends(require_admin),
+) -> TrainModelResponse:
     try:
-        dataset_path = Path(dataset_file) if dataset_file else None
+        dataset_path = resolve_dataset_key(dataset) if dataset else None
         result = train_model(dataset_path=dataset_path)
     except ModelTrainingError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -275,7 +300,10 @@ async def train_credit_model(dataset_file: str | None = None) -> TrainModelRespo
 
 
 @app.post("/model/predict-risk", response_model=RiskPredictionResponse)
-async def predict_credit_risk(payload: BorrowerProfileInput) -> RiskPredictionResponse:
+async def predict_credit_risk(
+    payload: BorrowerProfileInput,
+    _: dict = Depends(get_current_user),
+) -> RiskPredictionResponse:
     try:
         predicted_risk, class_probabilities, model_trained_at = predict_risk(payload.model_dump())
     except ModelTrainingError as exc:
